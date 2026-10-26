@@ -1,0 +1,11 @@
+{
+  "name": "four-horsemen-apocalypse",
+  "version": "0.1.0",
+  "description": "THE FOUR HORSEMEN: APOCALYPSE - Phase 1 classic 2D dungeon crawler prototype",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "license": "UNLICENSED"
+}

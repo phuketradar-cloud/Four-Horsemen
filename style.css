@@ -1,0 +1,24 @@
+html, body {
+  margin: 0;
+  height: 100%;
+  background: #0b0a08;
+  overflow: hidden;
+}
+#stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+#game {
+  /* Fixed 4:3 composition, scaled by JS to the largest fit */
+  width: 640px;
+  height: 480px;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  outline: none;
+  cursor: default;
+  background: #000;
+  box-shadow: 0 0 40px #000;
+}
