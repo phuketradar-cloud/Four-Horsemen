@@ -48,6 +48,7 @@ import { EnemyAbilities } from '../systems/EnemyAbilities.js';
 import { QuestManager } from '../systems/QuestManager.js';
 import { drawJournal, drawDialogue, drawChapterCard } from '../ui/JournalUI.js';
 import { NoticeCenter } from '../ui/Notifications.js';
+import { TitleScreen } from '../ui/TitleScreen.js';
 import { drawText } from '../render/PixelFont.js';
 import { drawInventory, inventoryKey } from '../ui/InventoryUI.js';
 import { drawEquipment } from '../ui/EquipmentUI.js';
@@ -76,6 +77,8 @@ export class GameManager {
     this.textures = buildTextures();
     this.sprites = buildSprites();
     this.renderer = new DungeonRenderer(this.textures, this.sprites);
+    // Phase 6 main menu (HTML layers over the cleaned concept art); skipped where there is no DOM
+    try { this.titleScreen = typeof document !== 'undefined' && document.body ? new TitleScreen(this) : null; } catch (err) { console.warn('[title] menu unavailable, using the canvas title', err); this.titleScreen = null; }
     this.effects = new Effects();
     this.effects.settings = this.settings; // reduced shake / flashing applied centrally
 
@@ -951,8 +954,10 @@ export class GameManager {
     if (!items || !items.length) return;
     for (const a of actions) {
       if ((a === 'turnLeft' || a === 'turnRight') && items[this.menuIndex % items.length]?.adjust) { items[this.menuIndex % items.length].adjust(a === 'turnLeft' ? -1 : 1); this.audio.play('ui'); continue; }
-      if (a === 'forward' || a === 'menuUp') { this.menuIndex = (this.menuIndex + items.length - 1) % items.length; this.audio.play('ui'); }
-      else if (a === 'back' || a === 'menuDown') { this.menuIndex = (this.menuIndex + 1) % items.length; this.audio.play('ui'); }
+      // up/down skip disabled entries (e.g. CONTINUE without a save), wrapping around
+      const step = (d) => { let i = this.menuIndex; for (let n = 0; n < items.length; n++) { i = (i + d + items.length) % items.length; if (!items[i]?.disabled) break; } this.menuIndex = i; this.audio.play('ui'); };
+      if (a === 'forward' || a === 'menuUp') step(-1);
+      else if (a === 'back' || a === 'menuDown') step(1);
       else if (a === 'confirm' || a === 'attack' || a === 'interact') { const it = items[this.menuIndex % items.length]; if (it && !it.disabled) { this.audio.play('confirm'); it.run(); } else if (it) this.audio.play('deny'); return; }
     }
   }
@@ -1132,8 +1137,12 @@ export class GameManager {
     const ctx = this.ctx;
     const t = this.realTime;
     ctx.imageSmoothingEnabled = false;
+    this.titleScreen?.sync();
     if (this.scene === 'title') {
-      Panels.drawTitle(ctx, this, t);
+      // Phase 6: the HTML/CSS main menu (ui/TitleScreen.js) draws art + title + buttons; this canvas
+      // is transparent here and only shows panels, prompts and notifications on top of it.
+      if (this.titleScreen) ctx.clearRect(0, 0, 640, 480);
+      else Panels.drawTitle(ctx, this, t); // fallback (no DOM)
       if (this.panel === 'options') Panels.drawOptions(ctx, this);
       if (this.panel === 'keybinds') Panels.drawKeybinds(ctx, this, t);
       if (this.confirm) drawConfirm(ctx, this);
