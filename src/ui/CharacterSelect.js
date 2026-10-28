@@ -27,7 +27,7 @@ export function drawCharacterSelect(ctx, g, t) {
     if (active) { ctx.fillStyle = Math.floor(t * 3) % 2 ? th.highlight : th.bronzeLight; ctx.fillRect(x + 3, y + 3, w - 6, 2); ctx.fillRect(x + 3, y + h - 5, w - 6, 2); }
     else if (hov) { ctx.fillStyle = th.bronze; ctx.fillRect(x + 3, y + 3, w - 6, 1); }
     ctx.fillStyle = '#000'; ctx.fillRect(x + w / 2 - 45, y + 9, 90, 106);
-    ctx.drawImage(g.sprites.portraits[c.portrait], x + w / 2 - 44, y + 10, 88, 104);
+    ctx.drawImage(g.sprites.portraits.hi?.[c.portrait] || g.sprites.portraits[c.portrait], x + w / 2 - 44, y + 10, 88, 104); // painted art at 2x when loaded
     if (!active) { ctx.globalAlpha = 0.35; ctx.fillStyle = '#000'; ctx.fillRect(x + w / 2 - 44, y + 10, 88, 104); ctx.globalAlpha = 1; }
     drawText(ctx, c.name, x + w / 2, y + 120, active ? c.colors.accent : th.text, { align: 'center', scale: 2 });
     drawText(ctx, c.title, x + w / 2, y + 137, th.textDim, { align: 'center' });
