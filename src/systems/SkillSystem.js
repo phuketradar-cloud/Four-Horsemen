@@ -1,7 +1,7 @@
 import { SKILLS, SKILL_UNLOCK, ULTIMATE_UNLOCK, UPGRADE_LEVEL, ULT_UPGRADE_LEVEL } from '../data/skills.js';
 import { HORSEMEN } from '../data/characters.js';
 import { STATUSES } from '../data/statuses.js';
-import { DIRS } from '../data/config.js';
+import { DIRS, LAYOUT } from '../data/config.js';
 import { randInt } from '../core/rng.js';
 import { CooldownManager } from './CooldownManager.js';
 import { mech } from './HorsemanMechanics.js';
@@ -232,7 +232,7 @@ export class SkillSystem {
         break;
       case 'buff':
         g.status.apply('player', eff.status, { dur: eff.dur, data: eff.power || null });
-        g.effects.text(192, 250, STATUSES[eff.status].name, STATUSES[eff.status].color, 1, 1.2);
+        g.effects.text(LAYOUT.view.w / 2, 250, STATUSES[eff.status].name, STATUSES[eff.status].color, 1, 1.2);
         break;
       case 'clear':
         targets.forEach((e) => this._schedule(0.02, () => g.status.remove(e, eff.status)));
@@ -290,7 +290,7 @@ export class SkillSystem {
     cast.healed += healed;
     this.healLog.push({ t: g.time, amt: healed });
     g.stats.healed = (g.stats.healed || 0) + healed;
-    g.effects.text(192 - 90, 258, `+${healed}`, '#60ff80', 2);
+    g.effects.text(LAYOUT.view.w / 2 - 90, 258, `+${healed}`, '#60ff80', 2);
     g.fx.drain(e);
   }
 

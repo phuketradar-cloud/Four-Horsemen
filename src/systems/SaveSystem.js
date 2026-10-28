@@ -7,7 +7,7 @@ import { migrate, SAVE_VERSION } from './SaveMigration.js';
 // Safe update: the new save is written to a temp key first, read back and validated, then
 // copied to the real slot; if the real slot is ever unreadable the temp copy is used.
 // Phase 6: ambient bus, separate shake / flash reduction, key rebinding (action -> KeyboardEvent.code)
-export const DEFAULT_SETTINGS = { master: 0.8, sfx: 0.9, music: 0.5, ambient: 0.6, muted: false, theme: 0, hotkeys: 'skills', reduceFx: false, reduceShake: false, reduceFlash: false, objectives: true, keybinds: {} };
+export const DEFAULT_SETTINGS = { master: 0.8, sfx: 0.9, music: 0.5, ambient: 0.6, muted: false, theme: 0, hotkeys: 'skills', reduceFx: false, reduceShake: false, reduceFlash: false, objectives: true, keybinds: {}, resolution: 'auto', scaling: 'sharp' };
 
 // Structural validation shared by save (before writing) and load (before restoring). It checks the
 // shape the loader relies on; ids inside are validated again by each system's restore().
@@ -39,6 +39,8 @@ export class SaveSystem {
     const s = { ...DEFAULT_SETTINGS, ...(read(SAVE_KEYS.settings) || {}) };
     for (const k of ['master', 'sfx', 'music', 'ambient']) s[k] = Number.isFinite(+s[k]) ? Math.max(0, Math.min(1, +s[k])) : DEFAULT_SETTINGS[k]; // never trust stored numbers
     if (!s.keybinds || typeof s.keybinds !== 'object') s.keybinds = {};
+    if (typeof s.resolution !== 'string' || !/^(auto|\d{3,4}x\d{3,4})$/.test(s.resolution)) s.resolution = 'auto';
+    if (s.scaling !== 'integer') s.scaling = 'sharp';
     if (s.reduceFx) { s.reduceShake = true; s.reduceFlash = true; s.reduceFx = false; } // Phase 1-5 single switch maps onto both (Effects applies them centrally)
     return s;
   }

@@ -113,7 +113,7 @@ export class LegendaryEffects {
     switch (a.do) {
       case 'resource': g.resource.gain(a.amount); break;
       case 'heal': { const h = g.hero.heal(Math.min(g.hero.maxHp * a.pct, g.hero.maxHp * 0.15)); if (h > 0) g.effects.text(LAYOUT.view.w / 2 - 90, LAYOUT.view.h - 80, `+${h}`, '#60ff80', 1); break; }
-      case 'buff': g.status.apply('player', a.status, { dur: a.dur }); g.effects.text(192, 240, d.name.toUpperCase(), '#ffd040', 1, 0.8); break;
+      case 'buff': g.status.apply('player', a.status, { dur: a.dur }); g.effects.text(LAYOUT.view.w / 2, 240, d.name.toUpperCase(), '#ffd040', 1, 0.8); break;
       case 'status': if (target?.alive) g.status.apply(target, a.status, { dur: a.dur || 4, stacks: a.stacks || 1 }); break;
       case 'damage': {
         const victim = a.target === 'attacker' ? attacker : target;

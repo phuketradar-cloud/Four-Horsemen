@@ -1,4 +1,5 @@
 import { DUNGEONS } from '../data/dungeons/index.js';
+import { LAYOUT } from '../data/config.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
 import { BOSSES } from '../data/bosses.js';
 import { RECIPES, REFORGE } from '../data/recipes.js';
@@ -320,7 +321,7 @@ export class DungeonDirector {
     run.bossReward = { name: bdef.name, items, gold: loot.gold, xp: g.xpFor(e), learned };
     g.audio.play('bossDefeat');
     g.effects.showBanner('VICTORY', '#ffd040', 3);
-    g.effects.sparkleColumn(192, 160, '#ffd040', 60);
+    g.effects.sparkleColumn(LAYOUT.view.w / 2, 160, '#ffd040', 60);
     g.log(`${bdef.name} is destroyed! Rewards: ${items.map((i) => i.name + (i.qty > 1 ? ' x' + i.qty : '')).join(', ')}${loot.gold ? `, ${loot.gold} gold` : ''}.`, '#ffd040');
     for (const n of learned) g.log(`Recipe learned: ${n}!`, '#7ac060');
     g.log('The exit portal awakens. [E] on it to leave the dungeon.', '#a8f0ff');

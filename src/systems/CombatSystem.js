@@ -20,6 +20,7 @@ export class CombatSystem {
     this.sideThreats = [];
     this.autoFaceT = 0;
     this.lastMissMsg = -10;
+    this.lastAttackAt = -10;
     // Phase 6: feedback counters (tests verify one hit reaction per damage application)
     this.feedback = { hits: 0, applied: 0, miss: 0, resisted: 0, weak: 0, playerHurt: 0 };
   }
@@ -116,19 +117,28 @@ export class CombatSystem {
   }
 
   // ------------------------------------------------------------ player actions
+  // Returns true when a swing actually started (used by the hold-to-attack repeat).
   playerAttack() {
     const g = this.game;
-    if (!g.hero.alive || g.player.guarding) return;
+    if (!this.canPlayerAct()) return false;
     const ws = g.weapons;
     if (!ws.canAttack()) {
-      if (ws.anim) return;
+      if (ws.anim) return false;
       if (ws.current.def.kind === 'ranged' && g.time - this.lastMissMsg > 1) { g.log('Reloading the crossbow...', '#a89a70'); this.lastMissMsg = g.time; }
-      return;
+      return false;
     }
     const w = ws.current;
     const attack = { id: ++this.seq, weapon: w, hit: new Set() };
     ws.begin(attack, (a) => this._impact(a));
+    this.lastAttackAt = g.time;
     g.audio.play(w.def.sfx);
+    return true;
+  }
+
+  // Dead, guarding or stunned (any player status flagged `stun`) Horsemen cannot swing.
+  canPlayerAct() {
+    const g = this.game;
+    return g.hero.alive && !g.player.guarding && !g.status.list('player').some((s) => s.def?.stun);
   }
 
   _impact(attack) {

@@ -1,4 +1,4 @@
-import { DIRS, TUNING } from '../data/config.js';
+import { DIRS, TUNING, LAYOUT } from '../data/config.js';
 import { TILE } from './DungeonManager.js';
 import { PROGRESSION } from '../data/progression.js';
 
@@ -204,7 +204,7 @@ export class PlayerController {
       if (gold) { g.gold += gold; g.stats.goldEarned = (g.stats.goldEarned || 0) + gold; }
       g.audio.play('chest');
       if (chest.trapReward || chest.secret || chest.classCache || chest.challenge) g.stats.chests = (g.stats.chests || 0) + 1;
-      g.effects.burst(192, 230, ['#f0c040', '#fff0b0'], 20, { speed: 80 });
+      g.effects.burst(LAYOUT.view.w / 2, 230, ['#f0c040', '#fff0b0'], 20, { speed: 80 });
       g.log(`The chest creaks open: ${items.map((i) => i.name).join(', ')}${gold ? `, ${gold} gold` : ''}. [E] to take.`, '#f0c040');
       g.grantXp(PROGRESSION.explorationXp.chest, 'treasure');
       return true;
