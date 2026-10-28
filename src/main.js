@@ -11,6 +11,9 @@ canvas.focus();
 
 // ?test runs the automated acceptance playthrough (results in console + window.__testResults)
 const params = new URLSearchParams(location.search);
+// The Phase 1-7 suites measure solo play (balance baselines, exact hit counts); they pin it.
+if (['test', 'test2', 'test3', 'test4', 'test5', 'test6', 'test7'].some((k) => params.has(k))) game.forceSolo = true;
+if (params.has('test8')) import('../tests/phase8.js').then((m) => m.runPhase8(game));
 if (params.has('test')) import('../tests/acceptance.js').then((m) => m.runAcceptance(game));
 if (params.has('test2')) import('../tests/phase2.js').then((m) => m.runPhase2(game));
 if (params.has('test3')) import('../tests/phase3.js').then((m) => m.runPhase3(game));
