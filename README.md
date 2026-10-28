@@ -3,6 +3,34 @@
 Dark-fantasy dungeon crawler แนว Wizardry: เดินทีละช่อง มุมมองบุคคลที่หนึ่งแบบ 2D คลาสสิก เล่นได้ **4 Horsemen**
 ยังเป็น **2D ล้วน** (HTML5 Canvas 2D + JavaScript ES Modules ไม่มี WebGL หรือ Three.js) และไม่ได้สร้างโปรเจกต์ใหม่ ทุกระบบของ Phase 1–5 ยังอยู่ ชุดทดสอบเดิมทั้งห้าชุดยังผ่านครบ
 
+## ภาพวาดศัตรู (เริ่มจาก Skeleton)
+
+![skeleton](docs/screens/enemy_skeleton.jpg)
+
+**วิธีเปลี่ยนภาพศัตรูตัวอื่น**
+
+1. วางรูปต้นฉบับที่ `assets/enemies/src/<sprite>_<pose>.webp`
+   - ชื่อ sprite ดูได้จาก `sprite:` ใน `enemies.js` / `bosses.js`
+   - pose มี idle / windup / attack / hurt ถ้ามีแค่ idle ก็ใช้ได้
+2. Bake ใน dev server:
+   ```js
+   const m = await import('/tools/make-enemy-art.js');
+   await m.bakeEnemy('<sprite>');
+   ```
+   - ตัดพื้นหลังขาว/ลายตาราง (รวมช่องที่ถูกล้อมไว้) ส่วนรูปที่โปร่งใสอยู่แล้วจะคงไว้ตามเดิม
+   - ครอปทุกท่าด้วยกรอบเดียวกันโดยยึดลำตัวท่า idle ตัวจึงขนาดเท่ากันและเท้าอยู่ระดับเดียวกันทุกท่า
+   - ย่อให้ลำตัวสูง 128 px แล้วบันทึกเป็น `assets/enemies/<sprite>/<pose>.png`
+3. เพิ่มชื่อ sprite ใน `src/data/enemyArt.js`
+
+**การแสดงผลในเกม** (`render/EnemyArt.js`)
+
+- ท่าเดินและท่ายืนหายใจสร้างจากภาพ idle (ขยับ 1–2 px)
+- `artScale` / `combatMult` ปรับขนาดให้ลำตัวสูงเท่า sprite เดิม ทั้งในฉากเดินและฉาก combat เพราะภาพวาดมีพื้นที่เผื่อให้ดาบที่ยกขึ้นและเลือดที่กระเด็น
+- เอฟเฟกต์เดิมใช้กับภาพใหม่ได้ทั้งหมด: เรืองแดงตอนง้าง, กะพริบขาวตอนโดนตี, เงาตามระยะ, ภาพใน bestiary
+- ถ้าโหลดไฟล์ไม่ได้ จะใช้ภาพที่โค้ดวาดเหมือนเดิม
+
+**ผลทดสอบ:** ชุดทดสอบทั้ง 8 ชุดผ่าน (`?test2` ครั้งแรกตกข้อ crossbow ซึ่งเป็น flake ที่รู้จักอยู่แล้ว รันซ้ำผ่าน 52/52)
+
 ## Party Combat: Horsemen ทั้ง 4 สู้พร้อมกัน (ผู้เล่นคุม 1, AI คุม 3)
 
 ![party](docs/screens/party_fight_1080.png)
