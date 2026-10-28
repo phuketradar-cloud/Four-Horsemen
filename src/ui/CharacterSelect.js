@@ -1,3 +1,4 @@
+import { FULL } from '../data/config.js';
 import { HORSEMEN, CLASS_ORDER, RESOURCES } from '../data/characters.js';
 import { SKILLS } from '../data/skills.js';
 import { drawText, wrapText } from '../render/PixelFont.js';
@@ -9,8 +10,8 @@ const SPEED = { FAST: 2, NORMAL: 1 };
 export function drawCharacterSelect(ctx, g, t) {
   const th = g.theme, ui = g.ui;
   ctx.drawImage(g.sprites.title, 0, 0);
-  ctx.globalAlpha = 0.72; ctx.fillStyle = '#050302'; ctx.fillRect(0, 0, 640, 480); ctx.globalAlpha = 1;
-  ui.block(0, 0, 640, 480);
+  ctx.globalAlpha = 0.72; ctx.fillStyle = '#050302'; ctx.fillRect(...FULL); ctx.globalAlpha = 1;
+  ui.block(...FULL);
   drawText(ctx, 'CHOOSE YOUR HORSEMAN', 320, 8, '#d8c8a0', { align: 'center', scale: 2 });
 
   const sel = CLASS_ORDER[g.selectIndex];

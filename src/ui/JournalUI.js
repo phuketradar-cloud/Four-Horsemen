@@ -1,3 +1,4 @@
+import { FULL } from '../data/config.js';
 import { CHAPTERS, NPCS, KEY_ITEMS, ENDINGS } from '../data/campaign.js';
 import { LORE } from '../data/lore.js';
 import { ENEMIES } from '../data/enemies.js';
@@ -14,8 +15,8 @@ const RANK_LABEL = { normal: 'COMMON', elite: 'ELITE', boss: 'BOSS' };
 
 function frame(ctx, g, title) {
   const ui = g.ui, th = g.theme;
-  ui.block(0, 0, 640, 480);
-  ctx.globalAlpha = 0.6; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 640, 480); ctx.globalAlpha = 1;
+  ui.block(...FULL);
+  ctx.globalAlpha = 0.6; ctx.fillStyle = '#000'; ctx.fillRect(...FULL); ctx.globalAlpha = 1;
   ui.frame(ctx, J.x, J.y, J.w, J.h, th, { border: 5, panel: '#0c0a07' });
   drawText(ctx, title, J.x + J.w / 2, J.y + 9, th.highlight, { align: 'center' });
   ctx.fillStyle = th.bronzeDark; ctx.fillRect(J.x + 8, J.y + 19, J.w - 16, 1);
@@ -164,8 +165,8 @@ export function drawDialogue(ctx, g, t) {
   const d = q.dialogue(g.talkNpc);
   if (!d) { g.closePanel(); return; }
   const B = { x: 60, y: 70, w: 520, h: 330 };
-  ui.block(0, 0, 640, 480);
-  ctx.globalAlpha = 0.6; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 640, 480); ctx.globalAlpha = 1;
+  ui.block(...FULL);
+  ctx.globalAlpha = 0.6; ctx.fillStyle = '#000'; ctx.fillRect(...FULL); ctx.globalAlpha = 1;
   ui.frame(ctx, B.x, B.y, B.w, B.h, th, { border: 5, panel: '#0c0a07' });
   ui.textButton(ctx, B.x + B.w - 24, B.y + 6, 15, 11, 'X', th, () => g.closePanel());
   const por = g.sprites.npcPortraits?.[d.npc.portrait];
@@ -203,8 +204,8 @@ export function drawDialogue(ctx, g, t) {
 export function drawChapterCard(ctx, g, t) {
   const c = CHAPTERS.find((x) => x.id === g.quests.titleCard);
   if (!c) { g.closePanel(); return; }
-  g.ui.block(0, 0, 640, 480);
-  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 640, 480);
+  g.ui.block(...FULL);
+  ctx.fillStyle = '#000'; ctx.fillRect(...FULL);
   drawText(ctx, c.title, 320, 150, '#a0823e', { align: 'center', scale: 2 });
   drawText(ctx, c.name, 320, 180, '#ff9a40', { align: 'center', scale: 3 });
   let y = 230;
@@ -212,6 +213,6 @@ export function drawChapterCard(ctx, g, t) {
   const main = g.quests.def(c.mainQuest);
   if (main) drawText(ctx, `NEW QUEST: ${main.name.toUpperCase()}`, 320, y + 16, '#ffd040', { align: 'center' });
   if (Math.floor(t * 2) % 2) drawText(ctx, 'PRESS ENTER OR CLICK TO CONTINUE', 320, 400, '#8c8467', { align: 'center' });
-  g.ui.button(0, 0, 640, 480, () => g.dismissChapterCard(), { sound: false });
+  g.ui.button(...FULL, () => g.dismissChapterCard(), { sound: false });
   g.activeMenu = [{ label: 'continue', run: () => g.dismissChapterCard() }];
 }

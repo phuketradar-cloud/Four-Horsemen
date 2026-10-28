@@ -1,17 +1,18 @@
-import { LAYOUT, DIRS } from '../data/config.js';
+import { LAYOUT, DIRS, SCREEN } from '../data/config.js';
 import { HORSEMEN } from '../data/characters.js';
 import { RARITIES } from '../data/items.js';
 import { drawText, wrapText } from '../render/PixelFont.js';
 import { TILE } from '../systems/DungeonManager.js';
 
-// The classic 1990s screen: top strip, six portraits, framed viewport, command menu,
-// minimap, round utility buttons, event log and weapon panel. Everything reads live game state.
+// The classic 1990s screen on a 16:9 frame: top strip, three party slots per side, framed viewport,
+// minimap, round utility buttons, skill bar, event log and weapon panel. Everything reads live game
+// state. (The floating COMMANDS popup is gone: every command has its own key, see Panels CONTROLS.)
 const WEAPON_SLOT_NAMES = ['SWORD', 'AXE', 'XBOW', 'DAGGER'];
 const WEAPON_ICON = ['sword', 'axe', 'crossbow', 'dagger'];
 
 export function drawBackground(ctx, g) {
   ctx.fillStyle = g.ui.stonePattern(ctx, g.theme);
-  ctx.fillRect(0, 0, 640, 480);
+  ctx.fillRect(0, 0, SCREEN.w, SCREEN.h);
 }
 
 export function drawTopStrip(ctx, g) {
@@ -36,15 +37,17 @@ export function drawTopStrip(ctx, g) {
   const room = g.player ? g.dungeon.roomAt(g.player.x, g.player.y) : null;
   const lay = g.dungeon.def;
   const where = lay.generated ? `${lay.name.replace('THE ', '')} F${lay.floor + 1}/${lay.floors}` : lay.name;
-  drawText(ctx, (where + (room ? ' · ' + room.name : '')).slice(0, 56), 74, 6, th.bronzeLight);
+  drawText(ctx, 'THE FOUR HORSEMEN', 74, 6, th.highlight);
+  ctx.fillStyle = th.bronzeDark; ctx.fillRect(180, 4, 1, 10);
+  drawText(ctx, (where + (room ? ' · ' + room.name : '')).slice(0, 78), 188, 6, th.bronzeLight);
   if (g.player) {
     const t = Math.floor(g.stats.playTime);
     const mm = String(Math.floor(t / 60)).padStart(2, '0'), ss = String(t % 60).padStart(2, '0');
-    drawText(ctx, `${g.gold}G`, 420, 6, '#e0c060', { align: 'right' });
-    drawText(ctx, `KILLS ${g.stats.kills}`, 476, 6, th.text, { align: 'right' });
-    drawText(ctx, `${mm}:${ss}`, 520, 6, th.textDim, { align: 'right' });
+    drawText(ctx, `${g.gold}G`, 704, 6, '#e0c060', { align: 'right' });
+    drawText(ctx, `KILLS ${g.stats.kills}`, 778, 6, th.text, { align: 'right' });
+    drawText(ctx, `${mm}:${ss}`, 836, 6, th.textDim, { align: 'right' });
     // compass
-    const x = 530;
+    const x = SCREEN.w - 110;
     ctx.fillStyle = '#000'; ctx.fillRect(x - 1, 2, 108, 14);
     ctx.fillStyle = th.panelLight; ctx.fillRect(x, 3, 106, 12);
     drawText(ctx, `▲ ${DIRS[g.player.dir].name}`, x + 53, 6, th.highlight, { align: 'center' });
@@ -56,8 +59,8 @@ export function drawTopStrip(ctx, g) {
 export function drawBossBar(vctx, g, t) {
   const e = g.bossCtl.boss;
   if (!e || !e.alive || !e.bossState?.started || g.combat.active) return;
-  // left of the command menu (which owns the viewport's top-right corner)
-  const x = 10, w = 266, W = x * 2 + w;
+  // centred across the top of the viewport
+  const w = 360, W = LAYOUT.view.w, x = Math.round((W - w) / 2);
   vctx.globalAlpha = 0.8; vctx.fillStyle = '#000'; vctx.fillRect(x - 4, 2, w + 8, 34); vctx.globalAlpha = 1;
   drawText(vctx, `${e.name.toUpperCase()} - ${g.bossCtl.phaseName(e)}`.slice(0, 44), W / 2, 5, '#ff9a60', { align: 'center' });
   vctx.fillStyle = '#3a0a06'; vctx.fillRect(x, 15, w, 6);
@@ -89,7 +92,7 @@ export function drawPlayerStatus(vctx, g, t) {
   });
 }
 
-// Top-left of the viewport (the command menu owns the top-right). Returns its height so the
+// Top-left of the viewport (notifications use the top-right). Returns its height so the
 // loot toasts can stack below it.
 export function drawObjectiveTracker(vctx, g) {
   if (!g.settings.objectives || g.combat.active || !g.inGeneratedRun || g.bossCtl.active) return 0;
@@ -171,6 +174,23 @@ function drawPartySlot(ctx, g, charId, x, y, w, h, index, t) {
         if (item && item.rarity !== 'common') { ctx.fillStyle = RARITIES[item.rarity].color; ctx.fillRect(bx + 1, by + 12, 22, 1); }
       }
     }
+    // active status effects (3-letter chip + a drain bar for the time left) and the weapon in hand
+    if (h >= 130) {
+      const sy = y + 104;
+      if (!buffs.length) drawText(ctx, 'NO EFFECTS', x + 5, sy + 3, '#5a5444');
+      buffs.slice(0, 4).forEach((s, k) => {
+        const cx = x + 5 + k * 27, bad = !!s.def?.debuff;
+        ctx.fillStyle = '#000'; ctx.fillRect(cx - 1, sy - 1, 26, 14);
+        ctx.fillStyle = '#16120a'; ctx.fillRect(cx, sy, 24, 12);
+        ctx.fillStyle = bad ? '#c03020' : '#40a040'; ctx.fillRect(cx, sy, 24, 1);
+        const blink = s.left < 2 && Number.isFinite(s.left) && Math.floor(t * 6) % 2;
+        drawText(ctx, (s.def?.name || s.id).slice(0, 3), cx + 3, sy + 3, blink ? '#ffffff' : s.def?.color || '#fff', { shadow: false });
+        if (Number.isFinite(s.left) && s.dur) { ctx.fillStyle = s.def?.color || '#fff'; ctx.fillRect(cx, sy + 11, Math.max(1, Math.round(24 * Math.min(1, s.left / s.dur))), 1); }
+      });
+      if (buffs.length > 4) drawText(ctx, `+${buffs.length - 4}`, x + 112, sy + 3, th.textDim, { align: 'right' });
+      const cur = g.weapons.current;
+      drawText(ctx, cur.name.toUpperCase().slice(0, 18), x + 5, y + 120, (RARITIES[cur.rarity] || RARITIES.common).color);
+    }
   } else {
     ui.bar(ctx, x + 53, y + 5, 5, 52, 0, '#444', '#141414', true);
     ui.bar(ctx, x + 61, y + 5, 5, 52, 0, '#444', '#141414', true);
@@ -187,6 +207,7 @@ function drawPartySlot(ctx, g, charId, x, y, w, h, index, t) {
       drawText(ctx, 'NO MEMBER', x + 5, y + 70, '#5a5444');
     }
     for (let s = 0; s < 4; s++) { ctx.fillStyle = '#000'; ctx.fillRect(x + 4 + s * 27, y + 84, 26, 16); ctx.fillStyle = '#16140e'; ctx.fillRect(x + 5 + s * 27, y + 85, 24, 14); }
+    if (h >= 130 && def) drawText(ctx, 'SEALED', x + w / 2, y + 112, '#7a4030', { align: 'center' });
   }
 }
 
@@ -213,30 +234,6 @@ export function drawViewFrameOrnaments(ctx, g) {
   ctx.fillStyle = th.bronze; ctx.fillRect(cx - 6, y + 1, 12, 7);
   ctx.fillStyle = th.bronzeLight; ctx.fillRect(cx - 6, y + 1, 12, 1);
   ctx.fillStyle = '#1a1206'; ctx.fillRect(cx - 4, y + 3, 3, 2); ctx.fillRect(cx + 1, y + 3, 3, 2); ctx.fillRect(cx - 1, y + 6, 2, 1);
-}
-
-// ------------------------------------------------------------------ command menu (inside viewport)
-export function drawCommandMenu(ctx, g, t) {
-  const th = g.theme, C = LAYOUT.commandMenu;
-  const items = g.commands;
-  const h = 12 + items.length * C.itemH + 2;
-  g.ui.block(C.x, C.y, C.w, h);
-  ctx.globalAlpha = 0.92;
-  g.ui.box(ctx, C.x, C.y, C.w, h, th, '#0b0a07');
-  ctx.globalAlpha = 1;
-  drawText(ctx, 'COMMANDS', C.x + C.w / 2, C.y + 3, th.bronzeLight, { align: 'center' });
-  ctx.fillStyle = th.bronzeDark; ctx.fillRect(C.x + 3, C.y + 11, C.w - 6, 1);
-  items.forEach((cmd, i) => {
-    const y = C.y + 13 + i * C.itemH;
-    const hov = g.ui.button(C.x + 2, y, C.w - 4, C.itemH, () => { g.commandIndex = i; g.runCommand(i); }, { sound: false });
-    const sel = g.commandIndex === i;
-    const enabled = cmd.enabled ? cmd.enabled() : true;
-    if (sel) { ctx.fillStyle = '#3a2c10'; ctx.fillRect(C.x + 2, y, C.w - 4, C.itemH); ctx.fillStyle = th.bronze; ctx.fillRect(C.x + 2, y, 1, C.itemH); }
-    else if (hov) { ctx.fillStyle = '#221a0c'; ctx.fillRect(C.x + 2, y, C.w - 4, C.itemH); }
-    const col = sel ? th.highlight : hov ? th.bronzeLight : enabled ? th.text : th.textDim;
-    if (sel && Math.floor(t * 3) % 2 === 0) drawText(ctx, '▶', C.x + 3, y + 2, th.highlight, { shadow: false });
-    drawText(ctx, cmd.label, C.x + 10, y + 2, col, { shadow: false });
-  });
 }
 
 // ------------------------------------------------------------------ minimap
@@ -397,7 +394,7 @@ export function drawWeaponHud(ctx, g) {
 export function drawPrompt(ctx, g, text, t) {
   if (!text) return;
   const w = text.length * 6 + 10;
-  const x = Math.round(LAYOUT.view.w / 2 - w / 2 - 40), y = LAYOUT.view.h - 22;
+  const x = Math.round(LAYOUT.view.w / 2 - w / 2), y = LAYOUT.view.h - 22;
   ctx.globalAlpha = 0.8; ctx.fillStyle = '#000'; ctx.fillRect(x, y, w, 13); ctx.globalAlpha = 1;
   ctx.fillStyle = g.theme.bronze; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y + 12, w, 1);
   drawText(ctx, text, x + 5, y + 3, Math.floor(t * 2) % 2 ? g.theme.highlight : g.theme.bronzeLight, { shadow: false });

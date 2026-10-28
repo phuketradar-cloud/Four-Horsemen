@@ -1,3 +1,4 @@
+import { FULL } from '../data/config.js';
 import { DUNGEONS, DUNGEON_ORDER } from '../data/dungeons/index.js';
 import { DIFFICULTIES, DIFFICULTY_ORDER } from '../data/difficulty.js';
 import { BOSSES } from '../data/bosses.js';
@@ -24,13 +25,13 @@ function materialsOf(def) {
 export function drawCamp(ctx, g, t) {
   const th = g.theme, ui = g.ui, p = g.progress;
   // backdrop
-  ctx.fillStyle = '#0a0806'; ctx.fillRect(0, 0, 640, 480);
-  for (let i = 0; i < 40; i++) { ctx.fillStyle = i % 3 ? '#141008' : '#1a140c'; ctx.fillRect(0, 380 + i * 3, 640, 3); }
+  ctx.fillStyle = '#0a0806'; ctx.fillRect(...FULL);
+  for (let i = 0; i < 40; i++) { ctx.fillStyle = i % 3 ? '#141008' : '#1a140c'; ctx.fillRect(FULL[0], 380 + i * 3, FULL[2], 3); }
   // campfire
   const fx = 40, fy = 30;
   for (let i = 0; i < 6; i++) { const h = 10 + Math.sin(t * 9 + i) * 4 + (i % 3) * 3; ctx.fillStyle = ['#ff6a20', '#ffb030', '#ffe080'][i % 3]; ctx.fillRect(fx - 9 + i * 3, fy - h, 3, h); }
   ctx.fillStyle = '#4a3020'; ctx.fillRect(fx - 12, fy, 26, 3);
-  ui.block(0, 0, 640, 480);
+  ui.block(...FULL);
   drawText(ctx, 'THE LAST SANCTUARY', 320, 8, '#d8c8a0', { align: 'center', scale: 2 });
   const ch = g.quests.currentChapter;
   drawText(ctx, g.quests.campaignComplete ? 'THE STORY IS TOLD - THE WORLD ENDURES' : `${ch.title}: ${ch.name}`, 320, 28, '#ff9a40', { align: 'center' });

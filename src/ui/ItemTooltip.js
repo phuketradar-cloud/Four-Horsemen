@@ -4,7 +4,7 @@ import { LEGENDARY_EFFECTS } from '../data/legendaryEffects.js';
 import { SETS } from '../data/sets.js';
 import { HORSEMEN } from '../data/characters.js';
 import { STAT_NAMES } from '../data/formulas.js';
-import { LAYOUT } from '../data/config.js';
+import { LAYOUT, FULL } from '../data/config.js';
 import { drawText, wrapText } from '../render/PixelFont.js';
 import { baseStatsOf } from '../systems/ItemGenerator.js';
 import { compareItem } from '../systems/ItemComparison.js';
@@ -128,8 +128,8 @@ export function drawToasts(ctx, g, ox = 0, oy = 0) {
 // Modal yes/no dialog for destructive actions.
 export function drawConfirm(ctx, g) {
   const th = g.theme, ui = g.ui;
-  ui.block(0, 0, 640, 480);
-  ctx.globalAlpha = 0.6; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 640, 480); ctx.globalAlpha = 1;
+  ui.block(...FULL);
+  ctx.globalAlpha = 0.6; ctx.fillStyle = '#000'; ctx.fillRect(...FULL); ctx.globalAlpha = 1;
   const lines = wrapText(g.confirm.text, 44);
   const w = 290, h = 50 + lines.length * 10, x = 320 - w / 2, y = 200 - h / 2;
   ui.frame(ctx, x, y, w, h, th, { border: 4 });

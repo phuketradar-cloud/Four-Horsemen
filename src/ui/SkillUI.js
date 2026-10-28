@@ -1,10 +1,10 @@
-import { LAYOUT } from '../data/config.js';
+import { LAYOUT, FULL } from '../data/config.js';
 import { SKILLS } from '../data/skills.js';
 import { drawText, wrapText } from '../render/PixelFont.js';
 
 // SkillBarUI (always visible above the log) + SkillTreeUI (K / skills panel).
 const B = LAYOUT.skillBar;
-const P = LAYOUT.viewFrame;
+const P = LAYOUT.panel; // skills panel: CLASSIC coordinates
 
 export function hotkeyLabel(g, i) {
   if (i === 4) return '5';
@@ -80,7 +80,7 @@ function drawSkillTooltip(ctx, g, tip) {
   if (g.hero.upgrades[tip.id]) lines.push([`UPGRADE: ${s.upgrades[g.hero.upgrades[tip.id]].name}`, '#ffd040']);
   const w = Math.min(330, Math.max(...lines.map(([l]) => l.length)) * 6 + 10);
   const h = lines.length * 9 + 6;
-  const x = Math.max(124, Math.min(516 - w, tip.x - 20)), y = B.y - h - 4;
+  const V = LAYOUT.view, x = Math.max(V.x, Math.min(V.x + V.w - w, tip.x - 20)), y = B.y - h - 4;
   g.ui.box(ctx, x, y, w, h, th, '#0c0a06');
   lines.forEach(([l, c], k) => drawText(ctx, l, x + 5, y + 4 + k * 9, c));
 }
@@ -88,8 +88,8 @@ function drawSkillTooltip(ctx, g, tip) {
 // ------------------------------------------------------------------ skills panel
 export function drawSkillPanel(ctx, g) {
   const th = g.theme, ui = g.ui, sk = g.skills, h = g.hero;
-  ui.block(0, 0, 640, 480);
-  ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 640, 480); ctx.globalAlpha = 1;
+  ui.block(...FULL);
+  ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(...FULL); ctx.globalAlpha = 1;
   ui.frame(ctx, P.x, P.y, P.w, P.h, th, { border: 5 });
   drawText(ctx, `${h.def.name} - SKILLS`, P.x + 10, P.y + 9, th.highlight);
   drawText(ctx, `SKILL POINTS: ${h.skillPoints}`, P.x + P.w - 30, P.y + 9, h.skillPoints ? '#ffd040' : th.textDim, { align: 'right' });

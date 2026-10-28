@@ -10,22 +10,25 @@ export class UIManager {
     this.regions = [];
     this.next = [];
     this.patterns = new Map();
+    this.ox = 0; this.oy = 0; // drawing origin (screens composed on the 640x480 grid, see GameManager._classic)
   }
 
   beginFrame() { this.regions = this.next; this.next = []; }
 
-  // Registers a clickable rect; returns hover state for drawing.
+  setOrigin(x, y) { this.ox = x; this.oy = y; }
+
+  // Registers a clickable rect (in current origin coordinates); returns hover state for drawing.
   button(x, y, w, h, onClick, opts = {}) {
-    this.next.push({ x, y, w, h, onClick, sound: opts.sound !== false });
+    this.next.push({ x: x + this.ox, y: y + this.oy, w, h, onClick, sound: opts.sound !== false });
     return this.hover(x, y, w, h);
   }
 
   // Swallows clicks over an area (modal backdrops).
-  block(x, y, w, h) { this.next.push({ x, y, w, h, onClick: null }); }
+  block(x, y, w, h) { this.next.push({ x: x + this.ox, y: y + this.oy, w, h, onClick: null }); }
 
   hover(x, y, w, h) {
-    const m = this.input.mouse;
-    return m.x >= x && m.y >= y && m.x < x + w && m.y < y + h;
+    const m = this.input.mouse, mx = m.x - this.ox, my = m.y - this.oy;
+    return mx >= x && my >= y && mx < x + w && my < y + h;
   }
 
   processClicks(clicks) {
@@ -136,7 +139,7 @@ export class UIManager {
     if (!this.tooltip) return;
     const t = this.tooltip;
     const w = t.text.length * 6 + 8;
-    const x = Math.max(2, Math.min(638 - w, t.x - w / 2));
+    const x = Math.max(2, Math.min(ctx.canvas.width - 2 - w, t.x - w / 2));
     this.box(ctx, x, t.y, w, 11, theme, '#0c0a06');
     drawText(ctx, t.text, x + 4, t.y + 2, theme.highlight);
     this.tooltip = null;

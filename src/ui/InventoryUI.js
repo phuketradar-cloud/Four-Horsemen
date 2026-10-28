@@ -1,3 +1,4 @@
+import { FULL } from '../data/config.js';
 import { EQUIP_SLOTS, SLOT_DEFS, RARITY_ORDER, RARITIES, ITEM_DEFS } from '../data/items.js';
 import { RECIPES, SELL_MULT } from '../data/recipes.js';
 import { drawText, wrapText } from '../render/PixelFont.js';
@@ -11,8 +12,8 @@ const SLOT_FILTERS = ['all', ...EQUIP_SLOTS, 'material'];
 const RARITY_FILTERS = ['any', ...RARITY_ORDER];
 
 export function modalFrame(ctx, g, title) {
-  g.ui.block(0, 0, 640, 480);
-  ctx.globalAlpha = 0.55; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, 640, 480); ctx.globalAlpha = 1;
+  g.ui.block(...FULL);
+  ctx.globalAlpha = 0.55; ctx.fillStyle = '#000'; ctx.fillRect(...FULL); ctx.globalAlpha = 1;
   g.ui.frame(ctx, M.x, M.y, M.w, M.h, g.theme, { border: 5 });
   drawText(ctx, title, M.x + 10, M.y + 8, g.theme.highlight);
   g.ui.textButton(ctx, M.x + M.w - 24, M.y + 6, 15, 11, 'X', g.theme, () => g.closePanel());
