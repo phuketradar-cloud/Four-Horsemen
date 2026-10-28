@@ -12,11 +12,10 @@ html, body {
   justify-content: center;
 }
 #game {
-  /* Fixed 4:3 composition, scaled by JS to the largest fit */
-  width: 640px;
-  height: 480px;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
+  /* 16:9 composition; core/Display.js sizes the backing store in device pixels and scales the
+     pixel art itself (integer / sharp), so the browser never resamples it again */
+  width: 960px;
+  height: 540px;
   outline: none;
   cursor: default;
   background: #000;

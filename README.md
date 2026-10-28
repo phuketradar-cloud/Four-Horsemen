@@ -3,6 +3,72 @@
 Dark-fantasy dungeon crawler แนว Wizardry: เดินทีละช่อง มุมมองบุคคลที่หนึ่งแบบ 2D คลาสสิก เล่นได้ **4 Horsemen**
 ยังเป็น **2D ล้วน** (HTML5 Canvas 2D + JavaScript ES Modules ไม่มี WebGL หรือ Three.js) และไม่ได้สร้างโปรเจกต์ใหม่ ทุกระบบของ Phase 1–5 ยังอยู่ ชุดทดสอบเดิมทั้งห้าชุดยังผ่านครบ
 
+## UI 16:9 + โจมตีต่อเนื่อง (กด SPACE ค้าง)
+
+**จอภาพ**
+
+- Logical resolution เปลี่ยนจาก 640×480 (4:3) เป็น **960×540 (16:9)**
+  - 1920×1080 = 2 เท่าพอดี และ 3840×2160 = 4 เท่า
+- `src/core/Display.js` ขยายภาพเอง:
+  - ถ้าขนาดหารลงตัวใช้ integer scale
+  - ถ้าไม่ลงตัว (เช่น 1280×720 = 1.33 เท่า, 1440p) ใช้วิธี sharp-bilinear คือขยายแบบ nearest เป็นจำนวนเต็มก่อนแล้วค่อยย่อ pixel จึงไม่ยืดไม่เท่ากัน
+  - canvas ถูกตั้งขนาดตาม device pixel
+- OPTIONS มีตัวเลือก:
+  - RESOLUTION: AUTO / 1280×720 … 3840×2160 (จำกัดไม่ให้ใหญ่กว่าหน้าต่าง)
+  - SCALING: SHARP FIT / INTEGER (letterbox)
+  - DISPLAY: WINDOWED / FULLSCREEN (หรือกด **F11**) ใช้ Fullscreen API ซึ่งเป็นแบบ borderless อยู่แล้ว
+- HUD จัดใหม่:
+  - viewport โตจาก 384×328 เป็น **704×388**
+  - focal 272 คงมุมมองแนวตั้งเดิม
+  - วาดผนังด้านข้างเพิ่มเป็น 6 ช่อง
+  - อาวุธยึดกับกึ่งกลางจอ
+  - ฉาก combat จัดกึ่งกลางใหม่
+- ช่อง party สูงขึ้นเป็น 132 px: Horseman ที่เล่นอยู่แสดง status effect (สูงสุด 4 พร้อมแถบเวลา) และชื่ออาวุธในมือ
+- แถบบนแสดงชื่อเกม ด่าน ห้อง ทอง kills เวลา และทิศ
+- Panel, หน้าเลือกตัวละคร และ camp ยังใช้ grid 640×480 เดิม แต่วางกึ่งกลางจอผ่าน `GameManager._classic()` (ctx.translate + `UIManager.setOrigin`) จึงไม่ต้องเขียนใหม่
+
+**ลบเมนู COMMANDS**
+
+ลบ popup, `LAYOUT.commandMenu`, `g.commands`, `commandIndex` และ `runCommand` ออกแล้ว ทุกคำสั่งยังใช้ได้ผ่านปุ่ม:
+
+| คำสั่ง | ปุ่ม |
+|---|---|
+| LOOK | L |
+| RETREAT / MOVE TO | S / W |
+| FIGHT | **G** |
+| ATTACK | SPACE |
+| DEFEND | F (ค้าง) |
+| CAST (สกิลที่พร้อมตัวแรก) | **B** หรือ 1–5 |
+| USE | Q |
+| SWAP WEAPONS | **V** หรือ Shift+1–4 |
+| TURN | **X** |
+| RUN AWAY | **Z** |
+| SWAP POSITIONS | P |
+| CHANGE COLORS | OPTIONS |
+| OPEN DOOR | E |
+| CANCEL | ESC |
+
+**โจมตีต่อเนื่อง**
+
+- กด SPACE ฟันทันที 1 ครั้ง ถ้ากดค้างจะฟันซ้ำเมื่ออาวุธพร้อมและผ่านไปแล้ว `TUNING.attackRepeat` (0.55 วินาที ปรับได้ใน `data/config.js`)
+- อาวุธช้ายังช้าตาม cooldown ของมันเอง
+- ไม่มีคิว: ปล่อยปุ่มแล้วหยุดทันที
+- ใช้ game time จึงเร็วเท่ากันที่ 20/30/144 fps
+- ใช้ `CombatSystem.playerAttack()` เดิมทุกครั้ง คือ hit detection, damage, impact ครั้งเดียวต่อ swing และ "strike at empty air"
+- หยุดเมื่อ: ตาย, stun, guard หรือเปิด panel
+- จอยก็กดค้างได้ (ปุ่ม A)
+
+**ทดสอบ**
+
+- `?test7` ผ่าน 19/19
+- ชุดเดิม: `?test` 29/29, `?test2` 52/52, `?test3` 27/27, `?test4&quick` 27/27, `?test5&quick` 26/26, `?test6&quick` 30/30
+
+**ข้อจำกัด**
+
+- Fullscreen ไม่เข้าในเบราว์เซอร์ที่ถูกควบคุมอัตโนมัติ (preview pane และ Chrome ที่ debugger เกาะอยู่) แม้จะ request ตรงจาก mousedown ก็ตาม เกมจะแจ้ง "Fullscreen is not available here." หลัง 1.5 วินาที ต้องลองกด F11 / OPTIONS ในเบราว์เซอร์ปกติเอง
+- หน้าเลือกตัวละคร, camp และ panel มีขอบเข้มด้านข้าง (ขยายพื้นหลัง ไม่ยืดภาพ)
+- ภาพตัวอย่าง: `docs/screens/ui16x9_1080.png`
+
 ## PHASE 6: รายงานสรุป
 
 ### วิธีรัน ทดสอบ และ build
