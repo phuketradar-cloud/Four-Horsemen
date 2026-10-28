@@ -1,6 +1,7 @@
 import { EventBus } from './EventBus.js';
 import { Input } from './Input.js';
 import { Display } from './Display.js';
+import { PartySystem } from '../systems/PartySystem.js';
 import { chance } from './rng.js';
 import { LAYOUT, TUNING, DIRS, SCREEN, CLASSIC } from '../data/config.js';
 import { DUNGEON_1 } from '../data/dungeon.js';
@@ -112,6 +113,9 @@ export class GameManager {
     this.inventory.isEquipped = (uid) => this.equipment.isEquipped(uid);
     this.legend = new LegendaryEffects(this);
     this.craft = new CraftingSystem(this);
+    // Party combat: all four Horsemen ride together; one is controlled, three by AI (PartySystem)
+    this.party = new PartySystem(this);
+    this.inventory.isEquipped = (uid) => this.party.isEquipped(uid) || this.equipment.isEquipped(uid);
     // Phase 4 — dungeons, bosses, secrets, hazards, progression
     this.progress = new DungeonProgress();
     this.director = new DungeonDirector(this);
@@ -165,7 +169,11 @@ export class GameManager {
     this._subscribe();
     this.hero.reset('war');
     this.resource.reset('war');
+    this.party.reset();
   }
+
+  // true while a companion's systems are swapped in (PartySystem.withActor)
+  get companionCtx() { return !!this.party?.companionCtx; }
 
   get theme() { return THEMES[this.settings.theme % THEMES.length]; }
   rarityColor(r) { return (RARITIES[r] || RARITIES.common).color; }
@@ -268,6 +276,7 @@ export class GameManager {
   // Autosave at safe points. In combat it is deferred (pendingAutosave) and runs as soon as the
   // fight ends. A small SAVING indicator shows on success; failures raise a sticky error (once/30s).
   autosave(reason = '', force = false) {
+    if (this.companionCtx) return false; // saves are always taken from the controlled Horseman's view
     if (this._loading || !this.hero.alive || !(this.scene === 'playing' || this.scene === 'camp' || this.scene === 'cleared')) return false;
     if (!force && this.scene === 'playing' && (this.inCombat || this.combat.active || this.bossCtl.active)) { this.pendingAutosave = reason || 'after combat'; return false; }
     const ok = this.saves.save(this);
@@ -300,6 +309,7 @@ export class GameManager {
       this.log(`LEVEL UP! You reach level ${level}. Max HP +${hpGain}. +1 skill point [K].`, '#ffd040');
       const unlocked = this.skills.slots.filter((id) => this.skills.unlockLevel(id) === level);
       for (const id of unlocked) this.log(`New power unlocked: ${this.skills.params(id).name}!`, '#ffe58a');
+      if (this.companionCtx) { this.resource.gain(this.resource.max * PROGRESSION.resourceOnLevelUp); return; } // party: one fanfare (the controlled Horseman's)
       this.effects.showBanner(`LEVEL ${level}!`, '#ffd040', 1.8);
       this.notify(`Level ${level}! +1 skill point - open SKILLS [K] to spend it.`, { kind: 'level' });
       this.effects.sparkleColumn(LAYOUT.view.w / 2, LAYOUT.view.h / 2, '#ffd040', 50);
@@ -401,6 +411,7 @@ export class GameManager {
     }
     this.calc.invalidate();
     this.hero.hp = this.hero.maxHp;
+    this.party.newGame(); // the other three Horsemen join with their starting weapons
     this.gold = 0;
     this.toasts = []; this.confirm = null; this.reward = null;
     this.invState = { sort: 'rarity', slot: 'all', rarity: 'any', sel: null, page: 0 };
@@ -436,7 +447,9 @@ export class GameManager {
     this.run = null;
     this.beginScene('camp');
     this.status.reset();
+    this.party.ctl.statusMap = this.status.player;
     this.hero.hp = this.hero.maxHp;
+    this.party.restAll();
     this.audio.setAmbience({ ambience: 'crypt', music: { root: 65, mode: 'dorian', tempo: 0.6 } });
     if (!this.progress.isUnlocked(this.campSel)) this.campSel = 'ashen_catacombs';
     this.menuIndex = this._lastMenuIndex = Math.max(0, DUNGEON_ORDER.indexOf(this.campSel));
@@ -524,7 +537,7 @@ export class GameManager {
 
   grantXp(n, why) {
     if (!n) return;
-    this.hero.gainXp(n);
+    if (this.party.enabled) this.party.gainXp(n); else this.hero.gainXp(n);
     this.stats.xpGained += n;
     this.log(`+${n} XP (${why}).`, '#c8b070');
   }
@@ -599,6 +612,8 @@ export class GameManager {
         this.run = null;
         this.beginScene('camp');
       }
+      // party: the other three Horsemen (older saves: they join at your level with starting weapons)
+      this.party.restore(data.party || null);
       this.hero.clampHp(); // derived stats recalculated, never trusted from the save
       this.logEntries = [];
       this.log(`Game loaded: ${this.hero.def.name}, level ${this.hero.level}. ${run ? 'The dungeon remembers you.' : 'You rest at the camp.'}`, '#7ac060');
@@ -645,7 +660,9 @@ export class GameManager {
   }
 
   onPlayerDeath(by) {
+    if (this.companionCtx) { this.party.onMemberFallen(this.party.current, by); return; } // a companion fell
     if (this.scene !== 'playing') return;
+    if (this.party.onControlledFallen(by)) return; // party play: control passes to a living Horseman
     this.killedBy = by ? by.name.toUpperCase() : null;
     this.scene = 'gameover'; this.sceneT = 0; this.panel = null; this.menuIndex = 0;
     this.player.guarding = false;
@@ -656,6 +673,7 @@ export class GameManager {
   }
 
   log(text, color = '#d9cfa8') {
+    if (this.companionCtx) { text = this.party.rewriteLog(text); if (text === null) return; } // "You hit" -> "WAR hits"
     this.logEntries.push({ text, color });
     if (this.logEntries.length > 120) this.logEntries.shift();
     this.logScroll = 0;
@@ -946,8 +964,25 @@ export class GameManager {
     h.held = input.isHeld('attack');
     if (!h.held || this.panel || this.confirm || this.scene !== 'playing') return;
     if (!this.combat.canPlayerAct() || !this.weapons.canAttack()) return;
-    if (this.time - this.combat.lastAttackAt < TUNING.attackRepeat) return;
+    if (this.time - (this.weapons.lastAttackAt ?? -10) < TUNING.attackRepeat) return;
     if (this.combat.playerAttack()) h.count++;
+  }
+
+  // Party play: direct control moves to that Horseman; the previous one is handed to the AI.
+  takeControl(classId) {
+    if (!this.party.enabled) { this.log('Party play is off (OPTIONS: PARTY).', '#8c8467'); return false; }
+    const m = this.party.byClass(classId);
+    if (!m || m === this.party.ctl) return false;
+    return this.party.setControlled(m);
+  }
+
+  // OPTIONS: party on/off, AI style, companion log detail. Turning the party on mid-game brings the
+  // other three in at your level; turning it off leaves them resting (their gear stays equipped).
+  setPartyOption(key, value) {
+    this.settings[key] = value;
+    if (key === 'party' && value !== 'off' && this.party.members.length === 1 && (this.scene === 'playing' || this.scene === 'camp')) this.party.addCompanions();
+    if (key === 'party' && value !== 'off') this.party.placeAround();
+    this.saves.saveSettings(this.settings);
   }
 
   // F11 / OPTIONS: borderless fullscreen (Fullscreen API), then re-fit the output.
@@ -1036,6 +1071,8 @@ export class GameManager {
           if (a === 'skills') { this.openPanel('skills'); return; }
           if (a === 'journal') { this.openPanel('journal'); return; }
           if (a === 'pause') { this.openPanel('pause'); return; }
+          if (/^control[1-4]$/.test(a)) this.takeControl(CLASS_ORDER[Number(a.slice(-1)) - 1]);
+          if (a === 'controlNext') this.party.cycleControl(1);
         }
         this._menuKeys(actions);
       }
@@ -1076,6 +1113,9 @@ export class GameManager {
         case 'cast': this.quickCast(); break;
         case 'aboutFace': this.controller.aboutFace(); break;
         case 'runAway': this.runAway(); break;
+        // party play: take direct control of another Horseman (F1-F4 / ` cycles)
+        case 'control1': case 'control2': case 'control3': case 'control4': this.takeControl(CLASS_ORDER[Number(a.slice(-1)) - 1]); break;
+        case 'controlNext': this.party.cycleControl(1); break;
         default: break;
       }
       if (this.scene !== 'playing') return;
@@ -1090,6 +1130,7 @@ export class GameManager {
     this.combat.update(dt);
     this.status.update(dt);
     this.skills.update(dt);
+    this.party.update(dt); // the three AI-controlled Horsemen act (their own weapons, skills, AI)
     // "in combat" = engaged, or any aware foe within 5 tiles; drives Fury/Dominion decay
     const p = this.player;
     this.inCombat = this.combat.active || this.bossCtl.active || this.enemies.some((e) => e.alive && ['detect', 'chase', 'attack', 'hurt'].includes(e.state) && Math.abs(e.x - p.x) + Math.abs(e.y - p.y) <= 5);
