@@ -452,7 +452,7 @@ export class DungeonRenderer {
       const total = labels.reduce((a, l) => a + l.length * 6 + 14, 0);
       x = Math.max(8, Math.round(cx - total / 2));
       list.forEach((s, i) => {
-        if (x + labels[i].length * 6 + 12 > 284) { x = 8; y += 11; } // wrap before the command menu
+        if (x + labels[i].length * 6 + 12 > W - 8) { x = 8; y += 11; } // wrap at the view edge
         const blink = s.left < 1.5 && Math.floor(t * 6) % 2;
         ctx.fillStyle = '#000'; ctx.fillRect(x, y, 9, 9);
         ctx.fillStyle = blink ? '#444' : s.def.color; ctx.fillRect(x + 1, y + 1, 7, 7);
@@ -538,7 +538,7 @@ export class DungeonRenderer {
         }
       }
       const pivX = img.width / 2, pivY = img.height * 0.82;
-      const baseX = W - 86 + ox, baseY = H + 14 + bob + oy;
+      const baseX = CX + 106 + ox, baseY = H + 14 + bob + oy; // right hand, anchored to the view centre
       ctx.translate(Math.round(baseX), Math.round(baseY));
       ctx.rotate(ang + jolt * 0.35);
       ctx.drawImage(img, Math.round(-pivX * s * sc), Math.round(-pivY * s * sc), Math.round(img.width * s * sc), Math.round(img.height * s * sc));
@@ -551,7 +551,7 @@ export class DungeonRenderer {
           ctx.fillStyle = a.type === 'heavy' ? '#ffd8a0' : '#f0f0ff';
           for (let i = 0; i < 26; i++) {
             const u = i / 25;
-            const xx = lerp(W - 40, 60, u * k0 + (1 - k0) * 0.2);
+            const xx = lerp(CX + 152, CX - 132, u * k0 + (1 - k0) * 0.2);
             const yy = H * 0.55 - Math.sin(u * Math.PI) * 70 + (a.type === 'heavy' ? 20 : 0);
             ctx.fillRect(Math.round(xx), Math.round(yy), 4, 3);
           }
@@ -592,21 +592,21 @@ export class DungeonRenderer {
       e.screen = { x, y, w: Math.round(w), h: Math.round(h), z: 1.5 };
 
       // name + HP bar
-      drawText(ctx, e.name, 146, 8, e.boss ? '#ff9a60' : e.champ ? e.champ.color : e.variant ? '#ff7050' : '#e8d8b0', { align: 'center' });
-      ctx.fillStyle = '#000'; ctx.fillRect(40, 18, 212, 8);
-      ctx.fillStyle = '#3a0a06'; ctx.fillRect(41, 19, 210, 6);
-      ctx.fillStyle = '#c02a14'; ctx.fillRect(41, 19, Math.round(210 * Math.max(0, e.hp) / e.maxHp), 6);
-      ctx.fillStyle = '#ff6a40'; ctx.fillRect(41, 19, Math.round(210 * Math.max(0, e.hp) / e.maxHp), 1);
-      drawText(ctx, `${Math.max(0, Math.ceil(e.hp))}/${e.maxHp}${e.rank !== 'normal' ? '  ' + e.rank.toUpperCase() : ''}`, 146, 29, '#c8b890', { align: 'center' });
-      this.drawStatusRow(ctx, game, e, 146, 58, true, t);
+      drawText(ctx, e.name, CX, 8, e.boss ? '#ff9a60' : e.champ ? e.champ.color : e.variant ? '#ff7050' : '#e8d8b0', { align: 'center' });
+      ctx.fillStyle = '#000'; ctx.fillRect(CX - 106, 18, 212, 8);
+      ctx.fillStyle = '#3a0a06'; ctx.fillRect(CX - 105, 19, 210, 6);
+      ctx.fillStyle = '#c02a14'; ctx.fillRect(CX - 105, 19, Math.round(210 * Math.max(0, e.hp) / e.maxHp), 6);
+      ctx.fillStyle = '#ff6a40'; ctx.fillRect(CX - 105, 19, Math.round(210 * Math.max(0, e.hp) / e.maxHp), 1);
+      drawText(ctx, `${Math.max(0, Math.ceil(e.hp))}/${e.maxHp}${e.rank !== 'normal' ? '  ' + e.rank.toUpperCase() : ''}`, CX, 29, '#c8b890', { align: 'center' });
+      this.drawStatusRow(ctx, game, e, CX, 58, true, t);
       this.drawSigils(ctx, game, e, x + w / 2, y + 10, t);
       if (e.state === 'attack' && e.phase === 'windup') {
         const k = Math.min(1, e.phaseT / (e.curWindup || e.def.windup * (e.windupMult || 1)));
-        ctx.fillStyle = '#000'; ctx.fillRect(80, 40, 132, 6);
-        ctx.fillStyle = '#ffb020'; ctx.fillRect(81, 41, Math.round(130 * k), 4);
+        ctx.fillStyle = '#000'; ctx.fillRect(CX - 66, 40, 132, 6);
+        ctx.fillStyle = '#ffb020'; ctx.fillRect(CX - 65, 41, Math.round(130 * k), 4);
         const melee = !e.boss || game.bossCtl._state(e).attack?.a.kind === 'melee';
         const msg = e.castName ? (melee ? `${e.castName.toUpperCase()}! GUARD [F]` : `${e.castName.toUpperCase()}! MOVE!`) : e.def.heavy ? 'HEAVY BLOW! GUARD [F]' : 'STRIKE INCOMING!';
-        if (Math.floor(t * 8) % 2 === 0) drawText(ctx, msg, 146, 49, '#ffd040', { align: 'center' });
+        if (Math.floor(t * 8) % 2 === 0) drawText(ctx, msg, CX, 49, '#ffd040', { align: 'center' });
       }
     }
     // player (back view)
@@ -616,11 +616,11 @@ export class DungeonRenderer {
     const pimg = (set[WEAPONS[ws.weaponId]?.fp || ws.weaponId] || set.sword)[lunge > 0.3 ? 1 : 0];
     const ps = 2.4;
     const guardOff = game.player.guarding ? 6 : 0;
-    ctx.drawImage(pimg, Math.round(18 + lunge * 26), Math.round(H - pimg.height * ps + 26 - lunge * 10 + guardOff), Math.round(pimg.width * ps), Math.round(pimg.height * ps));
+    ctx.drawImage(pimg, Math.round(CX - 174 + lunge * 26), Math.round(H - pimg.height * ps + 26 - lunge * 10 + guardOff), Math.round(pimg.width * ps), Math.round(pimg.height * ps));
     if (game.player.guarding) {
       const sh = this.spr.ui.shield_hi;
-      ctx.drawImage(sh, 90, H - 120, 24, 24);
-      drawText(ctx, 'GUARD', 102, H - 92, '#9ad0ff', { align: 'center' });
+      ctx.drawImage(sh, CX - 102, H - 120, 24, 24);
+      drawText(ctx, 'GUARD', CX - 90, H - 92, '#9ad0ff', { align: 'center' });
     }
     // side threats
     const sides = game.combat.sideThreats || [];
