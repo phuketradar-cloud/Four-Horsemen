@@ -1,5 +1,5 @@
 import { LAYOUT, DIRS, SCREEN } from '../data/config.js';
-import { HORSEMEN } from '../data/characters.js';
+import { HORSEMEN, CLASS_ORDER } from '../data/characters.js';
 import { RARITIES } from '../data/items.js';
 import { drawText, wrapText } from '../render/PixelFont.js';
 import { TILE } from '../systems/DungeonManager.js';
@@ -9,6 +9,7 @@ import { TILE } from '../systems/DungeonManager.js';
 // state. (The floating COMMANDS popup is gone: every command has its own key, see Panels CONTROLS.)
 const WEAPON_SLOT_NAMES = ['SWORD', 'AXE', 'XBOW', 'DAGGER'];
 const WEAPON_ICON = ['sword', 'axe', 'crossbow', 'dagger'];
+const AI_STATE_COLOR = { FOLLOW: '#7ac060', SEARCH: '#c8b070', APPROACH: '#ff9040', ATTACK: '#ff5030', DEFEND: '#9ad0ff', RECOVER: '#e0a0ff', FALLEN: '#ff3020' };
 
 export function drawBackground(ctx, g) {
   ctx.fillStyle = g.ui.stonePattern(ctx, g.theme);
@@ -109,20 +110,31 @@ export function drawObjectiveTracker(vctx, g) {
 }
 
 // ------------------------------------------------------------------ party portraits
+// Party play: every Horseman's slot shows its live state. The controlled one is framed in gold and
+// tagged YOU; companions show AI + their current AI state, and clicking them takes control.
 export function drawParty(ctx, g, t) {
+  const party = g.party;
   for (let i = 0; i < 6; i++) {
     const col = i < 3 ? LAYOUT.leftPanel : LAYOUT.rightPanel;
     const x = col.x, y = col.y + (i % 3) * (col.slotH + col.gap);
-    drawPartySlot(ctx, g, g.formation[i], x, y, col.w, col.slotH, i, t);
+    const charId = g.formation[i];
+    const m = party?.enabled && charId ? party.byClass(charId) : null;
+    if (m && m !== party.ctl) party.withActor(m, () => drawPartySlot(ctx, g, charId, x, y, col.w, col.slotH, i, t, m));
+    else drawPartySlot(ctx, g, charId, x, y, col.w, col.slotH, i, t, m);
   }
 }
 
-function drawPartySlot(ctx, g, charId, x, y, w, h, index, t) {
+function drawPartySlot(ctx, g, charId, x, y, w, h, index, t, member = null) {
   const th = g.theme, ui = g.ui;
   const def = charId ? HORSEMEN[charId] : null;
   const isHero = def && charId === g.hero.classId;
+  const companion = member && member !== g.party.ctl;
   ui.frame(ctx, x, y, w, h, th, { border: 3 });
-  ui.button(x, y, w, h, () => (isHero ? g.openPanel('character') : g.openPanel('formation')));
+  ui.button(x, y, w, h, () => (companion ? g.takeControl(charId) : isHero ? g.openPanel('character') : g.openPanel('formation')));
+  if (member && !companion) { // controlled Horseman: gold frame
+    ctx.fillStyle = Math.floor(t * 2) % 2 ? th.highlight : th.bronzeLight;
+    ctx.fillRect(x + 1, y + 1, w - 2, 1); ctx.fillRect(x + 1, y + h - 2, w - 2, 1); ctx.fillRect(x + 1, y + 1, 1, h - 2); ctx.fillRect(x + w - 2, y + 1, 1, h - 2);
+  }
   // portrait well
   ctx.fillStyle = '#000'; ctx.fillRect(x + 4, y + 4, 46, 54);
   const P = g.sprites.portraits;
@@ -151,9 +163,15 @@ function drawPartySlot(ctx, g, charId, x, y, w, h, index, t) {
     drawText(ctx, `${Math.floor(res.value)}`, x + 112, y + 26, res.pulse > 0 ? '#ffffff' : th.text, { align: 'right' });
     const lowHp = hero.hp / hero.maxHp < 0.3;
     const buffs = g.status.list('player');
-    const status = !hero.alive ? ['DEAD', '#ff3020'] : buffs.length ? [buffs[0].def.name.split(' ')[0].slice(0, 6), buffs[0].def.color]
+    const status = !hero.alive ? ['DEAD', '#ff3020'] : companion ? [member.ai.state.slice(0, 7), AI_STATE_COLOR[member.ai.state] || th.text] : buffs.length ? [buffs[0].def.name.split(' ')[0].slice(0, 6), buffs[0].def.color]
       : g.player.guarding ? ['GUARD', '#9ad0ff'] : lowHp ? ['HURT', Math.floor(t * 4) % 2 ? '#ff3020' : '#a02010'] : g.combat.active ? ['FIGHT', '#ff9040'] : ['OK', '#7ac060'];
     drawText(ctx, status[0], x + 70, y + 38, status[1]);
+    if (member) { // who drives this Horseman
+      const tag = companion ? 'AI' : 'YOU';
+      ctx.fillStyle = '#000'; ctx.fillRect(x + 5, y + 5, tag.length * 6 + 3, 9);
+      drawText(ctx, tag, x + 7, y + 6, companion ? '#9ad0ff' : th.highlight, { shadow: false });
+      if (companion) drawText(ctx, `F${CLASS_ORDER.indexOf(charId) + 1}`, x + 49, y + 48, th.textDim, { align: 'right' });
+    }
     if (hero.skillPoints > 0) drawText(ctx, `SP${hero.skillPoints}`, x + 112, y + 48, Math.floor(t * 2) % 2 ? '#ffd040' : '#a08020', { align: 'right' });
     // status-effect pips (future poison etc.)
     if (fb.type === 'level' && fb.t > 0) drawText(ctx, 'UP!', x + 112, y + 6, '#ffd040', { align: 'right' });
@@ -189,7 +207,10 @@ function drawPartySlot(ctx, g, charId, x, y, w, h, index, t) {
       });
       if (buffs.length > 4) drawText(ctx, `+${buffs.length - 4}`, x + 112, sy + 3, th.textDim, { align: 'right' });
       const cur = g.weapons.current;
-      drawText(ctx, cur.name.toUpperCase().slice(0, 18), x + 5, y + 120, (RARITIES[cur.rarity] || RARITIES.common).color);
+      // companions: their latest action (hit, kill, ability) for a few seconds; otherwise the weapon
+      const act = companion && member.lastAction && g.time - member.lastAction.t < 3 ? member.lastAction : null;
+      if (act) drawText(ctx, act.text.toUpperCase().slice(0, 18), x + 5, y + 120, act.skill ? '#ffe58a' : '#e8dcc0');
+      else drawText(ctx, cur.name.toUpperCase().slice(0, 18), x + 5, y + 120, (RARITIES[cur.rarity] || RARITIES.common).color);
     }
   } else {
     ui.bar(ctx, x + 53, y + 5, 5, 52, 0, '#444', '#141414', true);
@@ -287,6 +308,11 @@ export function drawMap(ctx, g, ox, oy, cs, full) {
     if (!dm.hasLOS(p.x, p.y, e.x, e.y)) continue; // only enemies you can currently see
     ctx.fillStyle = e.boss ? '#ff00ff' : e.def.heavy ? '#ff2a10' : '#e05030';
     ctx.fillRect(ox + e.x * cs + 1, oy + e.y * cs + 1, Math.max(2, cs - 2), Math.max(2, cs - 2));
+  }
+  // companions (party play): a dot in their class colour
+  for (const a of g.party?.renderList() || []) {
+    ctx.fillStyle = '#000'; ctx.fillRect(ox + a.x * cs, oy + a.y * cs, cs, cs);
+    ctx.fillStyle = a.color; ctx.fillRect(ox + a.x * cs + 1, oy + a.y * cs + 1, Math.max(1, cs - 2), Math.max(1, cs - 2));
   }
   // player arrow
   const px = ox + p.x * cs, py = oy + p.y * cs;

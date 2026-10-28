@@ -8,6 +8,7 @@ import { drawMap } from './HUD.js';
 // (Inventory, equipment and crafting screens live in InventoryUI / EquipmentUI / CraftingUI.)
 const P = LAYOUT.panel; // CLASSIC coordinates (drawn through GameManager._classic)
 import { REBINDABLE, keysFor, keyLabel } from '../core/Input.js';
+import { AI_STYLES } from '../data/party.js';
 
 function panelBase(ctx, g, title) {
   g.ui.block(...FULL); // modal: swallow clicks elsewhere
@@ -40,7 +41,7 @@ export function drawFormation(ctx, g) {
     drawText(ctx, def ? (lead ? def.role.split(' ')[0] : 'RESTING') : '-', colX + 56, y + 38, lead ? '#7ac060' : '#a04030');
     if (lead) drawText(ctx, `LV ${g.hero.level}`, colX + 56, y + 49, th.text);
   }
-  drawText(ctx, 'ONE HORSEMAN RIDES PER RUN. PARTY PLAY: A LATER PHASE', P.x + P.w / 2, P.y + P.h - 16, th.textDim, { align: 'center' });
+  drawText(ctx, g.party?.enabled ? 'ALL FOUR RIDE. F1-F4 OR CLICK A PORTRAIT: TAKE CONTROL' : 'SOLO PLAY (OPTIONS: PARTY TURNS THE OTHER THREE ON)', P.x + P.w / 2, P.y + P.h - 16, th.textDim, { align: 'center' });
 }
 
 // ------------------------------------------------------------------ full map
@@ -138,6 +139,9 @@ export function drawOptions(ctx, g) {
     { label: s.reduceShake ? 'SCREEN SHAKE: REDUCED' : 'SCREEN SHAKE: FULL', run: () => g.toggleSetting('reduceShake') },
     { label: s.reduceFlash ? 'FLASHING: REDUCED' : 'FLASHING: FULL', run: () => g.toggleSetting('reduceFlash') },
     { label: `COLORS: ${th.name}`, run: () => g.cycleTheme() },
+    { label: s.party === 'off' ? 'PARTY: SOLO (ONE HORSEMAN)' : 'PARTY: ALL FOUR (3 AI)', run: () => g.setPartyOption('party', s.party === 'off' ? 'on' : 'off') },
+    { label: `AI STYLE: ${(AI_STYLES[s.aiStyle] || AI_STYLES.balanced).label}`, run: () => { const k = Object.keys(AI_STYLES); g.setPartyOption('aiStyle', k[(k.indexOf(s.aiStyle) + 1) % k.length]); } },
+    { label: s.companionLog === 'full' ? 'COMPANION LOG: EVERY BLOW' : 'COMPANION LOG: KEY EVENTS', run: () => g.setPartyOption('companionLog', s.companionLog === 'full' ? 'brief' : 'full') },
     { label: `RESOLUTION: ${s.resolution === 'auto' ? 'AUTO' : s.resolution} - ${g.display.label()}`, run: () => g.cycleResolution() },
     { label: `SCALING: ${s.scaling === 'integer' ? 'INTEGER (LETTERBOX)' : 'SHARP FIT'}`, run: () => g.toggleScaling() },
     { label: g.display.fullscreen ? 'DISPLAY: FULLSCREEN [F11]' : 'DISPLAY: WINDOWED [F11]', run: () => g.toggleFullscreen() },
@@ -150,17 +154,17 @@ export function drawOptions(ctx, g) {
   g.activeMenu = items;
   const x = P.x + 40, w = P.w - 80;
   items.forEach((it, i) => {
-    const y = P.y + 24 + i * 18, sel = g.menuIndex === i;
+    const y = P.y + 24 + i * 16, sel = g.menuIndex === i;
     if (it.key) {
-      if (sel) { ctx.fillStyle = '#2e2410'; ctx.fillRect(x, y - 1, w, 16); }
+      if (sel) { ctx.fillStyle = '#2e2410'; ctx.fillRect(x, y - 1, w, 15); }
       drawText(ctx, it.label, x + 6, y + 3, sel ? th.highlight : th.text);
       g.ui.textButton(ctx, x + 128, y, 18, 14, '-', th, () => { g.menuIndex = i; it.adjust(-1); });
       g.ui.bar(ctx, x + 152, y + 4, 100, 6, s[it.key], th.bronze, '#120f09');
       g.ui.textButton(ctx, x + 258, y, 18, 14, '+', th, () => { g.menuIndex = i; it.adjust(1); });
       drawText(ctx, `${Math.round(s[it.key] * 100)}%`, x + w - 4, y + 3, sel ? th.highlight : th.textDim, { align: 'right' });
-    } else g.ui.textButton(ctx, x, y, w, 15, it.label, th, () => { g.menuIndex = i; it.run(); }, { selected: sel, disabled: it.disabled });
+    } else g.ui.textButton(ctx, x, y, w, 14, it.label, th, () => { g.menuIndex = i; it.run(); }, { selected: sel, disabled: it.disabled });
   });
-  drawText(ctx, 'UP/DOWN SELECT - LEFT/RIGHT VOLUME - ENTER CHANGE', P.x + P.w / 2, P.y + P.h - 14, th.textDim, { align: 'center' });
+  drawText(ctx, 'UP/DOWN SELECT - LEFT/RIGHT VOLUME - ENTER CHANGE', P.x + P.w / 2, P.y + P.h - 11, th.textDim, { align: 'center' });
 }
 
 const ACTION_LABEL = { forward: 'MOVE FORWARD', back: 'STEP BACK', turnLeft: 'TURN LEFT', turnRight: 'TURN RIGHT', attack: 'ATTACK', interact: 'INTERACT', guard: 'GUARD / PARRY', quickPotion: 'DRINK POTION', target: 'NEXT TARGET', look: 'LOOK', inventory: 'INVENTORY', character: 'CHARACTER', skills: 'SKILLS', crafting: 'CRAFTING', map: 'MAP', journal: 'JOURNAL', objectives: 'OBJECTIVES', ultimate: 'ULTIMATE' };
@@ -192,7 +196,7 @@ export const CONTROLS = [
   ['T / CLICK FOE', 'SELECT TARGET'], ['K', 'SKILLS + UPGRADES'], ['Q', 'DRINK HEALTH POTION'],
   ['TAB', 'INVENTORY'], ['I', 'CHARACTER & EQUIPMENT'], ['C', 'CRAFTING / DISMANTLE'], ['M / P', 'MAP / FORMATION'], ['L', 'LOOK (FIND SECRETS)'],
   ['O', 'OBJECTIVES'], ['G / B / V', 'FIGHT / QUICK CAST / NEXT WEAPON'], ['X / Z', 'ABOUT-FACE / RUN AWAY'],
-  ['F11', 'FULLSCREEN'], ['ESC', 'PAUSE / CLOSE / RETURN TO CAMP'],
+  ['F1-F4 / `', 'CONTROL CONQUEST/WAR/FAMINE/DEATH'], ['F11', 'FULLSCREEN'], ['ESC', 'PAUSE / CLOSE / RETURN TO CAMP'],
 ];
 
 export function drawHelp(ctx, g) {
