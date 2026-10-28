@@ -425,7 +425,7 @@ export class DungeonRenderer {
 
   _drawEnemy(e, game, t) {
     const img = this.enemyFrame(e, t);
-    let h = e.def.scale, alpha = 1;
+    let h = e.def.scale * (this.spr[e.spriteKey]?.artScale || 1), alpha = 1; // painted art: same body size
     if (e.dying) { const k = Math.min(1, e.deathT / 0.8); h *= 1 - k * 0.7; alpha = 1 - k; }
     // hurt shake + a short recoil on every connecting hit (Phase 6), both screen-space only
     const shakeX = (e.state === 'hurt' ? Math.sin(t * 60) * 2 : 0) + (e.recoil > 0 ? Math.sin(e.recoil * 70) * 3 * Math.min(1, e.recoil * 6) : 0);
@@ -586,7 +586,7 @@ export class DungeonRenderer {
     for (let i = 0; i < 6; i++) ctx.fillRect(CX - 120 + i * 8, H - 52 + i * 3, 240 - i * 16, 3);
     if (e) {
       const img = this.enemyFrame(e, t);
-      let sc = e.def.combatScale;
+      let sc = e.def.combatScale * (this.spr[e.spriteKey]?.combatMult || 1);
       let alpha = 1, ox = 0, oy = 0;
       if (e.dying) { const k = Math.min(1, e.deathT / 0.8); alpha = 1 - k; oy = k * 30; sc *= 1 - k * 0.15; }
       if (e.state === 'hurt') ox = Math.sin(t * 70) * 4;
