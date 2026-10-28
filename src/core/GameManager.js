@@ -1,7 +1,8 @@
 import { EventBus } from './EventBus.js';
 import { Input } from './Input.js';
+import { Display } from './Display.js';
 import { chance } from './rng.js';
-import { LAYOUT, TUNING, DIRS } from '../data/config.js';
+import { LAYOUT, TUNING, DIRS, SCREEN, CLASSIC } from '../data/config.js';
 import { DUNGEON_1 } from '../data/dungeon.js';
 import { HORSEMEN, CLASS_ORDER, buildFormation } from '../data/characters.js';
 import { PROGRESSION, scaledXp } from '../data/progression.js';
@@ -65,12 +66,15 @@ indexMaterialUsage(ITEM_DEFS, LOOT_TABLES, RECIPES);
 // Scenes: title | select | camp (Phase 4 hub) | playing | gameover | cleared
 export class GameManager {
   constructor(canvas) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.ctx.imageSmoothingEnabled = false;
+    this.canvas = canvas; // visible canvas; everything is drawn on the logical 960x540 `screen`
     this.bus = new EventBus();
     this.saves = new SaveSystem();
     this.settings = this.saves.loadSettings();
+    this.screen = document.createElement('canvas');
+    this.screen.width = SCREEN.w; this.screen.height = SCREEN.h;
+    this.ctx = this.screen.getContext('2d');
+    this.ctx.imageSmoothingEnabled = false;
+    this.display = new Display(canvas, this.screen, this.settings);
     this.audio = new AudioManager(this.settings);
     this.input = new Input(canvas, () => { this.audio.unlock(); if (this.scene !== 'title') this.audio.startMusic(); }, () => this.settings.hotkeys);
     this.input.setBindings(this.settings.keybinds);
@@ -147,7 +151,6 @@ export class GameManager {
     this.realTime = 0;
     this.logEntries = [];
     this.logScroll = 0; this.logScrollMax = 0;
-    this.commandIndex = 0;
     this.menuIndex = 0;
     this.invSel = 0;
     this.formation = buildFormation(this.classId);
@@ -158,7 +161,7 @@ export class GameManager {
     this.clearedT = 0;
     this.killedBy = null;
 
-    this.commands = this._buildCommands();
+    this.holdAttack = { lastAt: -Infinity, count: 0 }; // hold-SPACE auto attack (see _updateHeldAttack)
     this._subscribe();
     this.hero.reset('war');
     this.resource.reset('war');
@@ -290,27 +293,6 @@ export class GameManager {
     } catch (err) { this.log('Export failed.', '#ff7a60'); console.warn(err); }
   }
 
-  _buildCommands() {
-    const c = this.controller;
-    return [
-      { label: 'LOOK', run: () => c.look() },
-      { label: 'RETREAT', run: () => { this.player.moveCD = 0; c.step(-1); } },
-      { label: 'FIGHT', run: () => this.fight() },
-      { label: 'ATTACK', run: () => this.combat.playerAttack() },
-      { label: 'DEFEND', run: () => { c.defend(0.9); this.log('You raise your guard.', '#9ad0ff'); } },
-      { label: 'CAST', run: () => this.quickCast() },
-      { label: 'USE', run: () => this.usePotion() },
-      { label: 'SWAP WEAPONS', run: () => this.cycleWeapon(1) },
-      { label: 'TURN', run: () => c.aboutFace() },
-      { label: 'RUN AWAY', run: () => this.runAway(), enabled: () => this.combat.active || this.combat.sideThreats.length > 0 },
-      { label: 'MOVE TO', run: () => { this.player.moveCD = 0; c.step(1); } },
-      { label: 'SWAP POSITIONS', run: () => this.togglePanel('formation') },
-      { label: 'CHANGE COLORS', run: () => this.cycleTheme() },
-      { label: 'OPEN DOOR', run: () => { if (!c.openFront()) this.log('There is no door before you.', '#8c8467'); } },
-      { label: 'CANCEL', run: () => this.cancel() },
-    ];
-  }
-
   _subscribe() {
     // Subscribed once in the constructor — restarts never add duplicate listeners.
     this.bus.on('skillUsed', () => { this.stats.skillsUsed++; });
@@ -429,7 +411,7 @@ export class GameManager {
     this.scene = 'playing'; this.sceneT = 0;
     this.panel = null;
     this.time = 0; this.clearedT = 0; this.killedBy = null;
-    this.invSel = 0; this.commandIndex = 0; this.menuIndex = 0;
+    this.invSel = 0; this.menuIndex = 0;
     this.input.clearAll();
     this.log('THE FOUR HORSEMEN: APOCALYPSE', '#d02a14');
     this.log(`${cls.name}, ${cls.title}, descends into the ${DUNGEONS[dungeonId].name.toLowerCase().replace(/(^|\s)\S/g, (m) => m.toUpperCase())}.`, cls.colors.accent);
@@ -709,13 +691,6 @@ export class GameManager {
     }
   }
 
-  cancel() {
-    if (this.panel) { this.closePanel(); return; }
-    this.player.guardUntil = 0;
-    this.commandIndex = 0;
-    this.log('Cancelled.', '#8c8467');
-  }
-
   usePotion() {
     const pot = this.inventory.findFirst('health_potion') || this.inventory.findFirst('greater_health_potion');
     if (!pot) { this.log('You have no Health Potions.', '#ff7a60'); return; }
@@ -783,14 +758,6 @@ export class GameManager {
     } else this.log('You carry no other weapon.', '#8c8467');
   }
 
-  runCommand(i) {
-    const cmd = this.commands[i];
-    if (!cmd || this.scene !== 'playing') return;
-    if (this.panel && cmd.label !== 'CANCEL' && cmd.label !== 'SWAP POSITIONS') return;
-    this.audio.play('ui');
-    cmd.run();
-  }
-
   formationClick(i) {
     if (this.formationSel < 0) { this.formationSel = i; return; }
     if (this.formationSel !== i) {
@@ -852,6 +819,7 @@ export class GameManager {
   resetSettings() {
     const keep = { theme: this.settings.theme, hotkeys: this.settings.hotkeys };
     Object.assign(this.settings, JSON.parse(JSON.stringify(DEFAULT_SETTINGS)), keep);
+    this.display.layout();
     this.input.setBindings(this.settings.keybinds);
     this.audio.applyVolumes();
     this.saves.saveSettings(this.settings);
@@ -884,6 +852,8 @@ export class GameManager {
     this.saves.saveSettings(this.settings);
   }
   toggleSetting(key) { this.settings[key] = !this.settings[key]; this.saves.saveSettings(this.settings); }
+  cycleResolution() { this.display.cycleResolution(); this.saves.saveSettings(this.settings); }
+  toggleScaling() { this.display.toggleScaling(); this.saves.saveSettings(this.settings); }
   toggleMute() { this.settings.muted = !this.settings.muted; this.audio.applyVolumes(); this.saves.saveSettings(this.settings); }
   cycleTheme() {
     this.settings.theme = (this.settings.theme + 1) % THEMES.length;
@@ -966,6 +936,25 @@ export class GameManager {
   }
 
   // Shared modal-panel input (playing + camp). Returns true when a panel consumed the frame.
+  // Hold ATTACK (SPACE / pad A): the press itself swings through the normal edge action; while it stays
+  // held, another swing starts once the weapon is ready again AND TUNING.attackRepeat has passed since
+  // the last swing. Nothing is queued: each frame either starts a swing or does nothing, so releasing
+  // the key stops further swings at once (a swing already in motion still lands its single impact).
+  // Game time drives it, so the rate is the same at any frame rate.
+  _updateHeldAttack(input) {
+    const h = this.holdAttack;
+    h.held = input.isHeld('attack');
+    if (!h.held || this.panel || this.confirm || this.scene !== 'playing') return;
+    if (!this.combat.canPlayerAct() || !this.weapons.canAttack()) return;
+    if (this.time - this.combat.lastAttackAt < TUNING.attackRepeat) return;
+    if (this.combat.playerAttack()) h.count++;
+  }
+
+  // F11 / OPTIONS: borderless fullscreen (Fullscreen API), then re-fit the output.
+  toggleFullscreen() {
+    this.display.toggleFullscreen().then((ok) => { if (!ok) this.notify('Fullscreen is not available here.', { kind: 'warn' }); this.display.layout(); });
+  }
+
   _panelInput(actions) {
     if (this.confirm) { // modal yes/no: Enter = yes, Esc = no
       for (const a of actions) {
@@ -1004,7 +993,8 @@ export class GameManager {
     this.ui.processClicks(input.consumeClicks());
     const wheel = input.consumeWheel();
     const actions = input.consumePressed();
-    if (wheel && this.ui.hover(LAYOUT.log.x, LAYOUT.log.y, LAYOUT.log.w, LAYOUT.log.h)) {
+    if (actions.includes('fullscreen')) this.toggleFullscreen();
+    if (wheel &&this.ui.hover(LAYOUT.log.x, LAYOUT.log.y, LAYOUT.log.w, LAYOUT.log.h)) {
       this.logScroll = Math.max(0, Math.min(this.logScrollMax, this.logScroll - wheel));
     }
     // Unequip shortcut inside inventory
@@ -1081,15 +1071,18 @@ export class GameManager {
         case 'crafting': this.openPanel('crafting'); return;
         case 'quickPotion': this.usePotion(); break;
         case 'look': this.controller.look(); break;
-        case 'menuUp': this.commandIndex = (this.commandIndex + this.commands.length - 1) % this.commands.length; this.audio.play('ui'); break;
-        case 'menuDown': this.commandIndex = (this.commandIndex + 1) % this.commands.length; this.audio.play('ui'); break;
-        case 'confirm': this.runCommand(this.commandIndex); break;
+        // former COMMANDS-menu entries (the popup is gone; each has a key, see CONTROLS in Panels.js)
+        case 'fight': this.fight(); break;
+        case 'cast': this.quickCast(); break;
+        case 'aboutFace': this.controller.aboutFace(); break;
+        case 'runAway': this.runAway(); break;
         default: break;
       }
       if (this.scene !== 'playing') return;
     }
 
     this.controller.update(dt, input);
+    this._updateHeldAttack(input);
     this.time += dt;
     this.stats.playTime += dt;
     this.weapons.update(dt);
@@ -1136,7 +1129,27 @@ export class GameManager {
     else this.activeMenu = null;
   }
 
+  // Draws a screen composed on the original 640x480 grid (panels, select, camp) centred on the 16:9
+  // frame: canvas translate + the same offset for click regions / hover / tooltips.
+  _classic(ctx, fn) {
+    const before = this.ui.tooltip;
+    ctx.save();
+    ctx.translate(CLASSIC.x, CLASSIC.y);
+    this.ui.setOrigin(CLASSIC.x, CLASSIC.y);
+    try { fn(); } finally {
+      this.ui.setOrigin(0, 0);
+      ctx.restore();
+    }
+    const tip = this.ui.tooltip;
+    if (tip && tip !== before) { tip.x += CLASSIC.x; tip.y += CLASSIC.y; }
+  }
+
   render() {
+    this._renderFrame();
+    this.display.present();
+  }
+
+  _renderFrame() {
     const ctx = this.ctx;
     const t = this.realTime;
     ctx.imageSmoothingEnabled = false;
@@ -1144,24 +1157,30 @@ export class GameManager {
     if (this.scene === 'title') {
       // Phase 6: the HTML/CSS main menu (ui/TitleScreen.js) draws art + title + buttons; this canvas
       // is transparent here and only shows panels, prompts and notifications on top of it.
-      if (this.titleScreen) ctx.clearRect(0, 0, 640, 480);
-      else Panels.drawTitle(ctx, this, t); // fallback (no DOM)
-      if (this.panel === 'options') Panels.drawOptions(ctx, this);
-      if (this.panel === 'keybinds') Panels.drawKeybinds(ctx, this, t);
-      if (this.confirm) drawConfirm(ctx, this);
+      if (this.titleScreen) ctx.clearRect(0, 0, SCREEN.w, SCREEN.h);
+      else { ctx.fillStyle = '#050302'; ctx.fillRect(0, 0, SCREEN.w, SCREEN.h); this._classic(ctx, () => Panels.drawTitle(ctx, this, t)); } // fallback (no DOM)
+      this._classic(ctx, () => {
+        if (this.panel === 'options') Panels.drawOptions(ctx, this);
+        if (this.panel === 'keybinds') Panels.drawKeybinds(ctx, this, t);
+        if (this.confirm) drawConfirm(ctx, this);
+      });
       this._drawOverlays(ctx, t);
       this.ui.drawTooltip(ctx, this.theme);
       return;
     }
     if (this.scene === 'select') {
-      drawCharacterSelect(ctx, this, t);
+      ctx.fillStyle = '#050302'; ctx.fillRect(0, 0, SCREEN.w, SCREEN.h);
+      this._classic(ctx, () => drawCharacterSelect(ctx, this, t));
       return;
     }
     if (this.scene === 'camp') {
-      drawCamp(ctx, this, t);
-      this._drawPanel(ctx, t);
-      drawToasts(ctx, this, 140, 30);
-      if (this.confirm) drawConfirm(ctx, this);
+      ctx.fillStyle = '#0a0806'; ctx.fillRect(0, 0, SCREEN.w, SCREEN.h);
+      this._classic(ctx, () => {
+        drawCamp(ctx, this, t);
+        this._drawPanel(ctx, t);
+        drawToasts(ctx, this, 140, 30);
+        if (this.confirm) drawConfirm(ctx, this);
+      });
       this._drawOverlays(ctx, t);
       this.ui.drawTooltip(ctx, this.theme);
       return;
@@ -1205,33 +1224,33 @@ export class GameManager {
     }
 
     HUD.drawViewFrameOrnaments(ctx, this);
-    HUD.drawCommandMenu(ctx, this, t);
     HUD.drawMinimap(ctx, this);
     HUD.drawUtility(ctx, this);
     HUD.drawLog(ctx, this);
     HUD.drawWeaponHud(ctx, this);
     drawSkillBar(ctx, this, t);
 
-    this._drawPanel(ctx, t);
-
-    if (this.scene === 'gameover') Panels.drawGameOver(ctx, this, t);
-    if (this.scene === 'cleared') Panels.drawCleared(ctx, this, t);
-    if (this.confirm) drawConfirm(ctx, this);
+    this._classic(ctx, () => {
+      this._drawPanel(ctx, t);
+      if (this.scene === 'gameover') Panels.drawGameOver(ctx, this, t);
+      if (this.scene === 'cleared') Panels.drawCleared(ctx, this, t);
+      if (this.confirm) drawConfirm(ctx, this);
+    });
     this._drawOverlays(ctx, t);
     this.ui.drawTooltip(ctx, this.theme);
   }
 
   // Phase 6 screen-space overlays shared by every scene: notifications + the saving indicator.
   _drawOverlays(ctx, t) {
-    // in a dungeon: the viewport's right column under the command menu; elsewhere: top-right
-    if (this.scene === 'playing' && !this.panel) this.notices.draw(ctx, this.ui, LAYOUT.view.x + LAYOUT.view.w - 4, LAYOUT.view.y + 168, 220);
-    else this.notices.draw(ctx, this.ui, 636, this.panel ? 46 : 28, 214); // below a panel's title / close button
+    // in a dungeon: the viewport's top-right (below the boss bar row); elsewhere: top-right of the screen
+    if (this.scene === 'playing' && !this.panel) this.notices.draw(ctx, this.ui, LAYOUT.view.x + LAYOUT.view.w - 4, LAYOUT.view.y + 44, 240);
+    else this.notices.draw(ctx, this.ui, SCREEN.w - 4, this.panel ? 46 : 28, 214); // below a panel's title / close button
     const si = this.saveIndicator;
     if (si) {
       const a = Math.min(1, (1.6 - si.t) * 2);
       ctx.globalAlpha = Math.max(0, a);
       // bottom-right of the viewport in a dungeon, bottom-right of the screen elsewhere (never over buttons)
-      const [x, y] = this.scene === 'playing' ? [LAYOUT.view.x + LAYOUT.view.w - 96, LAYOUT.view.y + LAYOUT.view.h - 14] : [540, 6];
+      const [x, y] = this.scene === 'playing' ? [LAYOUT.view.x + LAYOUT.view.w - 96, LAYOUT.view.y + LAYOUT.view.h - 14] : [SCREEN.w - 100, 6];
       ctx.fillStyle = '#0a0806'; ctx.fillRect(x - 4, y - 3, 92, 14);
       ctx.fillStyle = si.ok ? '#7ac060' : '#ff5a4a';
       if (si.ok) { const k = Math.floor(t * 8) % 4; for (let i = 0; i < 4; i++) ctx.fillRect(x + i * 3, y + 3 - (i === k ? 2 : 0), 2, 2); }
