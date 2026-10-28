@@ -73,7 +73,25 @@ export class EnemyAI {
   _occupied(x, y, self) {
     const p = this.game.player;
     if (p.x === x && p.y === y) return true;
+    if (this.game.party?.occupied(x, y)) return true; // companions' bodies
     return this.game.enemies.some((e) => e !== self && e.alive && e.x === x && e.y === y);
+  }
+
+  // Party play: which Horseman this foe fights. It keeps an adjacent current foe, else takes any
+  // adjacent Horseman, else the nearest one it can see. Solo play: always the player.
+  _pickTarget(e) {
+    const g = this.game, party = g.party;
+    if (!party?.enabled) return { member: null, body: g.player };
+    const list = party.livingBodies();
+    const d = (t) => Math.abs(t.body.x - e.x) + Math.abs(t.body.y - e.y);
+    const cur = list.find((t) => t.member === e.aggro) || null;
+    if (cur && d(cur) === 1) return cur;
+    const adj = list.find((t) => d(t) === 1);
+    if (adj) return adj;
+    const seen = list.filter((t) => d(t) <= e.def.detectRange && g.dungeon.hasLOS(e.x, e.y, t.body.x, t.body.y));
+    if (cur && seen.includes(cur)) return cur;
+    if (seen.length) return seen.sort((a, b) => d(a) - d(b))[0];
+    return cur || list[0];
   }
 
   _set(e, state) {
@@ -110,6 +128,13 @@ export class EnemyAI {
     const interrupt = stagger || e.def.interruptible;
     if (e.state === 'attack' && e.phase === 'windup' && !interrupt) return; // knights shrug off light hits mid-swing
     if (e.state === 'attack' && e.phase === 'strike') return;
+    // party play: four attackers must not hit-stun a foe forever - after a flinch it keeps its
+    // footing for a moment (real staggers from skills / parries still land)
+    const g = this.game;
+    if (g.party?.enabled && !stagger) {
+      if (g.time - (e.flinchAt ?? -99) < 1.2) return;
+      e.flinchAt = g.time;
+    }
     e.stun = stagger ? 0.9 : e.def.hurtStun;
     this._set(e, 'hurt');
     e.stateT = 0;
@@ -156,10 +181,14 @@ export class EnemyAI {
       e.stateT += dt;
       e.recoil = Math.max(0, (e.recoil || 0) - dt);
       this._watchdog(e);
-      const sees = this._sees(e);
-      const adj = this._adjacent(e);
-      if (e.boss && game.bossCtl) { game.bossCtl.update(e, dt, sees, adj); continue; } // bosses: BossEncounterController
-      if ((e.def.abilities || e.def.ai === 'ranged') && game.abilities?.update(e, dt, sees, adj)) continue; // Phase 5 behaviours
+      // bosses and Phase 5 ability users keep aiming at the controlled Horseman (their scripts use g.player)
+      if (e.boss && game.bossCtl) { e.aggro = null; game.bossCtl.update(e, dt, this._sees(e), this._adjacent(e)); continue; } // bosses: BossEncounterController
+      if ((e.def.abilities || e.def.ai === 'ranged') && game.abilities?.update(e, dt, this._sees(e), this._adjacent(e))) { e.aggro = null; continue; } // Phase 5 behaviours
+      const tgt = this._pickTarget(e);
+      e.aggro = tgt.member;
+      const tb = tgt.body, tdist = Math.abs(tb.x - e.x) + Math.abs(tb.y - e.y);
+      const sees = tdist <= e.def.detectRange && dm.hasLOS(e.x, e.y, tb.x, tb.y);
+      const adj = tdist === 1;
       const wu = e.def.windup * (e.windupMult || 1);
 
       switch (e.state) {
@@ -189,9 +218,8 @@ export class EnemyAI {
           e.moveT += dt;
           if (e.moveT >= e.def.moveInterval * (e.moveMult || 1) * game.status.moveMult(e)) { // Starved foes move slower
             e.moveT = 0;
-            const p = game.player;
-            const step = dm.nextStep(e.x, e.y, p.x, p.y, (x, y) => this._occupied(x, y, e), 300);
-            if (step && !(step.x === p.x && step.y === p.y)) this._moveTo(e, step.x, step.y);
+            const step = dm.nextStep(e.x, e.y, tb.x, tb.y, (x, y) => this._occupied(x, y, e), 300);
+            if (step && !(step.x === tb.x && step.y === tb.y)) this._moveTo(e, step.x, step.y);
           }
           break;
         }
@@ -201,7 +229,7 @@ export class EnemyAI {
             if (!adj) { this._set(e, 'chase'); break; }
             if (e.phaseT > 0.25) { e.phase = 'windup'; e.phaseT = 0; if (e.def.heavy) game.audio.play('windup'); }
           } else if (e.phase === 'windup') {
-            if (e.phaseT >= wu) { e.phase = 'strike'; e.phaseT = 0; game.combat.enemyStrike(e); }
+            if (e.phaseT >= wu) { e.phase = 'strike'; e.phaseT = 0; if (game.party?.enabled) game.party.enemyStrike(e); else game.combat.enemyStrike(e); }
           } else if (e.phase === 'strike') {
             if (e.phaseT > 0.25) { e.phase = 'recover'; e.phaseT = 0; }
           } else if (e.phase === 'recover') {

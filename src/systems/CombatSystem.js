@@ -45,6 +45,7 @@ export class CombatSystem {
 
   screenPoint(e) {
     if (e && e.screen) return { x: e.screen.x + e.screen.w / 2, y: e.screen.y + Math.min(30, e.screen.h * 0.25) };
+    if (this.game.companionCtx) return { x: -999, y: -999 }; // a companion's foe out of view: no centre-screen numbers
     return { x: VW / 2, y: VH / 2 - 20 };
   }
   _screenPoint(e) { return this.screenPoint(e); }
@@ -131,6 +132,7 @@ export class CombatSystem {
     const attack = { id: ++this.seq, weapon: w, hit: new Set() };
     ws.begin(attack, (a) => this._impact(a));
     this.lastAttackAt = g.time;
+    ws.lastAttackAt = g.time; // per Horseman (party play: companions' swings never delay yours)
     g.audio.play(w.def.sfx);
     return true;
   }
@@ -171,7 +173,7 @@ export class CombatSystem {
 
   _spawnProjectile(kind, range, speed, dmg, attack) {
     const p = this.game.player, d = DIRS[p.dir];
-    this.projectiles.push({ kind, ox: p.x, oy: p.y, x: p.x, y: p.y, dx: d.dx, dy: d.dy, dist: 0, checked: 0, range, speed, dmg, attack });
+    this.projectiles.push({ kind, ox: p.x, oy: p.y, x: p.x, y: p.y, dx: d.dx, dy: d.dy, dist: 0, checked: 0, range, speed, dmg, attack, owner: this.game.party?.enabled ? this.game.party.current : null });
   }
 
   _updateProjectiles(dt) {
@@ -180,9 +182,13 @@ export class CombatSystem {
       const e = g.ai.enemyAt(cx, cy);
       if (!e || pr.attack.hit.has(e.id)) return false;
       pr.attack.hit.add(e.id); // a projectile damages a target once
-      const r = this.basicDamage(e, pr.dmg);
-      if (r.miss) this._miss(e);
-      else this.damageEnemy(e, r.dmg, r.crit, { ctx: r.ctx });
+      const land = () => {
+        const r = this.basicDamage(e, pr.dmg);
+        if (r.miss) this._miss(e);
+        else this.damageEnemy(e, r.dmg, r.crit, { ctx: r.ctx });
+      };
+      // party play: a bolt resolves with the stats of the Horseman who shot it
+      if (pr.owner && g.party?.enabled && g.party.members.includes(pr.owner)) g.party.withActor(pr.owner, land); else land();
       if (pr.pierce > 0) { pr.pierce--; return true; } // Sunlance: keep flying to the next foe
       pr.dead = true;
       return true;
@@ -256,7 +262,9 @@ export class CombatSystem {
     const first = g.director ? g.director.claimKill(e) : true;
     const xp = first ? g.xpFor(e) : 0; // level-difference scaling (anti-farming), always explained
     const why = e.summoned ? ' (summoned: no reward)' : xp < e.xp ? ` (reduced to ${Math.round((xp / Math.max(1, e.xp)) * 100)}%: foe ${g.hero.level - e.level} levels below you)` : '';
-    g.log(`${The(e)} is destroyed! +${xp} XP${why}`, '#ffb060');
+    // party play names the Horseman who landed the killing blow
+    if (g.party?.enabled) g.log(`${The(e)} falls to ${g.party.current.name}! +${xp} XP${why}`, g.party.current.color);
+    else g.log(`${The(e)} is destroyed! +${xp} XP${why}`, '#ffb060');
     const m = mech(g);
     if (m.onKill) m.onKill(g, e); // passives read statuses before they are cleared
     g.legend.onKill(e, new Map(e.statuses));
@@ -266,7 +274,11 @@ export class CombatSystem {
     if (g.target === e) g.target = null;
     g.stats.kills++;
     g.stats.xpGained += xp;
-    g.hero.gainXp(xp);
+    if (g.party?.enabled) { // which Horseman landed the kill; XP is shared by the party
+      const k = g.party.current;
+      k.kills = (k.kills || 0) + 1;
+      g.party.gainXp(xp);
+    } else g.hero.gainXp(xp);
     if (!first) e.lootRolled = true; // a repeated death report can never roll loot later either
     const loot = first ? g.loot.rollEnemy(e) : { items: [], gold: 0 }; // rolled once per defeat
     if (first && e.bonusLoot) loot.items.push(...g.loot.rollTable(e.bonusLoot, e.level || 1).items); // variant bonus table (same event)
@@ -277,7 +289,9 @@ export class CombatSystem {
       g.audio.play('pickup');
       g.log(`It dropped ${loot.items.map((d) => d.name + (d.qty > 1 ? ' x' + d.qty : '')).join(', ')}${loot.gold ? ` and ${loot.gold} gold` : ''}.`, '#c8b070');
     } else if (loot.gold) g.log(`+${loot.gold} gold.`, '#e0c060');
-    g.bus.emit('enemyKilled', e);
+    // world reactions (room gates, quests, objectives) run in the controlled Horseman's context
+    if (g.companionCtx) g.party.defer(() => g.bus.emit('enemyKilled', e));
+    else g.bus.emit('enemyKilled', e);
   }
 
   // Called by EnemyAI when a wind-up completes.
@@ -299,7 +313,7 @@ export class CombatSystem {
     if (wraith && fromFront) {
       g.status.remove('player', 'wraith');
       g.audio.play('wraith');
-      g.effects.text(VW / 2, VH / 2 - 30, 'EVADED!', '#c0e8ff', 2);
+      if (!g.companionCtx) g.effects.text(VW / 2, VH / 2 - 30, 'EVADED!', '#c0e8ff', 2);
       g.log(`You slip through ${the(e)}'s blow like a wraith.`, '#c0e8ff');
       const pw = wraith.data;
       if (pw) {
@@ -313,7 +327,7 @@ export class CombatSystem {
     const s = g.hero.stats || {};
     // Evasion (gear only): the blow misses entirely
     if (s.evasion > 0 && chance(s.evasion / 100)) {
-      g.effects.text(VW / 2, VH / 2 - 30, 'DODGE', '#9ad0ff', 2);
+      if (!g.companionCtx) g.effects.text(VW / 2, VH / 2 - 30, 'DODGE', '#9ad0ff', 2);
       g.log(`You dodge ${the(e)}'s blow.`, '#9ad0ff');
       g.audio.play('enemySwipe');
       return;
@@ -327,8 +341,7 @@ export class CombatSystem {
     if (p.guarding && fromFront) {
       if (g.time - p.guardStart <= TUNING.perfectGuardWindow) {
         g.audio.play('parry');
-        g.effects.text(VW / 2, VH / 2 - 30, 'PARRY!', '#9ad0ff', 3);
-        g.effects.burst(VW / 2, VH / 2, ['#ffffff', '#9ad0ff'], 20, { speed: 140 });
+        if (!g.companionCtx) { g.effects.text(VW / 2, VH / 2 - 30, 'PARRY!', '#9ad0ff', 3); g.effects.burst(VW / 2, VH / 2, ['#ffffff', '#9ad0ff'], 20, { speed: 140 }); }
         g.ai.stagger(e, e.def.heavy ? 1.4 : 0.9);
         g.log(`Perfect parry! ${The(e)} staggers.`, '#9ad0ff');
         if (e.boss && g.bossCtl) g.bossCtl.onParried(e);
@@ -336,7 +349,7 @@ export class CombatSystem {
       }
       dmg *= TUNING.guardReduction;
       g.audio.play('block');
-      g.effects.text(VW / 2, VH / 2 - 30, 'BLOCK', '#9ad0ff', 2);
+      if (!g.companionCtx) g.effects.text(VW / 2, VH / 2 - 30, 'BLOCK', '#9ad0ff', 2);
     }
     const dealt = g.hero.takeDamage(Math.max(1, dmg));
     g.stats.damageTaken += dealt;
@@ -359,9 +372,10 @@ export class CombatSystem {
     g.audio.play('hurt');
     g.effects.screenFlash('#c00000', 0.3);
     g.effects.addShake(e.def.heavy ? 8 : 4);
-    g.effects.text(VW / 2 - 90, VH - 70, `-${dealt}`, e.def.heavy ? '#ff2010' : '#ff4030', e.def.heavy ? 3 : 2);
+    if (!g.companionCtx) g.effects.text(VW / 2 - 90, VH - 70, `-${dealt}`, e.def.heavy ? '#ff2010' : '#ff4030', e.def.heavy ? 3 : 2);
     g.effects.damageFrom(this.sideOf(e));
-    g.hurtFlash = 0.35; this.feedback.playerHurt++;
+    if (!g.companionCtx) g.hurtFlash = 0.35;
+    this.feedback.playerHurt++;
     g.log(`${The(e)} hits you for ${dealt}${p.guarding && fromFront ? ' (blocked)' : ''}.`, '#ff7a60');
     if (!g.hero.alive) g.onPlayerDeath(e);
   }

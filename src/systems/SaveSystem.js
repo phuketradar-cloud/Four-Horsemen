@@ -7,7 +7,7 @@ import { migrate, SAVE_VERSION } from './SaveMigration.js';
 // Safe update: the new save is written to a temp key first, read back and validated, then
 // copied to the real slot; if the real slot is ever unreadable the temp copy is used.
 // Phase 6: ambient bus, separate shake / flash reduction, key rebinding (action -> KeyboardEvent.code)
-export const DEFAULT_SETTINGS = { master: 0.8, sfx: 0.9, music: 0.5, ambient: 0.6, muted: false, theme: 0, hotkeys: 'skills', reduceFx: false, reduceShake: false, reduceFlash: false, objectives: true, keybinds: {}, resolution: 'auto', scaling: 'sharp' };
+export const DEFAULT_SETTINGS = { master: 0.8, sfx: 0.9, music: 0.5, ambient: 0.6, muted: false, theme: 0, hotkeys: 'skills', reduceFx: false, reduceShake: false, reduceFlash: false, objectives: true, keybinds: {}, resolution: 'auto', scaling: 'sharp', party: 'on', aiStyle: 'balanced', companionLog: 'brief' };
 
 // Structural validation shared by save (before writing) and load (before restoring). It checks the
 // shape the loader relies on; ids inside are validated again by each system's restore().
@@ -41,6 +41,9 @@ export class SaveSystem {
     if (!s.keybinds || typeof s.keybinds !== 'object') s.keybinds = {};
     if (typeof s.resolution !== 'string' || !/^(auto|\d{3,4}x\d{3,4})$/.test(s.resolution)) s.resolution = 'auto';
     if (s.scaling !== 'integer') s.scaling = 'sharp';
+    if (s.party !== 'off') s.party = 'on';
+    if (!['balanced', 'aggressive', 'cautious'].includes(s.aiStyle)) s.aiStyle = 'balanced';
+    if (s.companionLog !== 'full') s.companionLog = 'brief';
     if (s.reduceFx) { s.reduceShake = true; s.reduceFlash = true; s.reduceFx = false; } // Phase 1-5 single switch maps onto both (Effects applies them centrally)
     return s;
   }
@@ -71,6 +74,7 @@ export class SaveSystem {
       enemies: inRun ? game.ai.serialize() : [],
       loot: inRun ? game.loot.serialize() : { nextUid: game.loot.nextUid, floor: [] },
       stats: game.stats,
+      party: game.party?.serialize() || null, // the three companions (the controlled Horseman is `hero`)
     };
   }
 

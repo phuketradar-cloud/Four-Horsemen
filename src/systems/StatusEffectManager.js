@@ -44,6 +44,8 @@ export class StatusEffectManager {
     } else {
       map.set(id, { id, stacks: Math.min(maxStacks, stacks), until: g.time + dur, dur, power, perStack, data, nextTick: g.time + (def.tick || 1) });
     }
+    // party play: an enemy DoT ticks with the stats / mechanic of the Horseman who applied it last
+    if (target !== 'player' && g.party?.enabled) map.get(id).owner = g.party.current;
     return { applied: true, stacks: map.get(id).stacks };
   }
 
@@ -81,20 +83,29 @@ export class StatusEffectManager {
         const d = STATUSES[s.id];
         if (d.dot && g.time >= s.nextTick) {
           s.nextTick += d.tick;
-          const st = g.hero.stats || {};
-          const dmg = Math.round((s.power + s.perStack * this.stacks(e, 'wither')) * (1 + ((st.dotDmg || 0) + (st.skillPower || 0)) / 100) * g.combat.resistMult(e, { source: 'dot' }));
-          if (dmg > 0) g.combat.damageEnemy(e, dmg, false, { dot: true, source: 'dot', color: d.color });
+          const tick = () => {
+            const st = g.hero.stats || {};
+            const dmg = Math.round((s.power + s.perStack * this.stacks(e, 'wither')) * (1 + ((st.dotDmg || 0) + (st.skillPower || 0)) / 100) * g.combat.resistMult(e, { source: 'dot' }));
+            if (dmg > 0) g.combat.damageEnemy(e, dmg, false, { dot: true, source: 'dot', color: d.color });
+          };
+          if (s.owner && g.party?.enabled && g.party.members.includes(s.owner)) g.party.withActor(s.owner, tick); else tick();
           if (!e.alive) break;
         }
         if (g.time >= s.until) e.statuses.delete(s.id);
       }
     }
+    this.updatePlayer();
+  }
+
+  // The acting Horseman's own statuses (party play calls this per member, in its context).
+  updatePlayer() {
+    const g = this.game;
     for (const s of [...this.player.values()]) {
       const d = STATUSES[s.id];
       if (d.playerDot && g.time >= s.nextTick) { // Blight: % max HP per tick, never lethal
         s.nextTick += d.tick || 1;
         const dealt = g.hurtPlayer(g.hero.maxHp * d.playerDot, { kind: 'blight', label: d.name.toLowerCase(), nonLethal: true, quiet: true, flat: true });
-        if (dealt) g.effects.text(140, 250, `-${dealt}`, d.color, 1);
+        if (dealt && !g.companionCtx) g.effects.text(140, 250, `-${dealt}`, d.color, 1);
       }
       if (g.time >= s.until) this.player.delete(s.id);
     }

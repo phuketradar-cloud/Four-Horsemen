@@ -14,6 +14,7 @@ export class PlayerController {
     };
     this.buffered = [];
     this.game.dungeon.reveal(start.x, start.y, start.dir);
+    this.game.party?.onFloorStart(); // companions gather around the new start cell
   }
 
   get p() { return this.game.player; }
@@ -78,7 +79,11 @@ export class PlayerController {
     }
     p.moveCD = g.hero.moveRepeat || TUNING.moveRepeat; // class movement speed (Conquest is fast)
     p.prevX = p.x; p.prevY = p.y;
+    // party play: a companion in the way swaps places with you (never blocks you)
+    const ally = g.party?.memberAt(nx, ny);
+    if (ally) { ally.player.x = p.x; ally.player.y = p.y; ally.player.moveCD = 0.25; }
     p.x = nx; p.y = ny;
+    g.party?.onLeaderMoved({ x: p.prevX, y: p.prevY });
     p.bob = 1;
     g.audio.play('step');
     g.dungeon.reveal(p.x, p.y, p.dir);

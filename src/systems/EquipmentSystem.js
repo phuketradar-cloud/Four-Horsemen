@@ -47,6 +47,9 @@ export class EquipmentSystem {
 
   equip(uid) {
     const item = this.inv.get(uid);
+    // party play: one item, one wielder (the bag is shared by all four Horsemen)
+    const owner = this.game?.party?.ownerOf(uid);
+    if (item && owner && owner.equipment !== this) return { ok: false, msg: `${owner.name} is using ${item.name}. Take control of ${owner.name} to unequip it first.` };
     const can = this.canEquip(item);
     if (!can.ok) return can;
     const slot = item.def.slot;
