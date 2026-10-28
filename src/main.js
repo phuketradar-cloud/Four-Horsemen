@@ -1,17 +1,8 @@
 import { GameManager } from './core/GameManager.js';
-import { SCREEN } from './data/config.js';
 
-// Boot: create the single GameManager, keep the 640x480 (4:3) canvas scaled to fit the window.
+// Boot: create the single GameManager. It draws a 960x540 (16:9) logical frame; core/Display.js sizes
+// and presents it on this canvas (integer / sharp scaling, resolution + fullscreen options).
 const canvas = document.getElementById('game');
-
-function fit() {
-  const s = Math.min(window.innerWidth / SCREEN.w, window.innerHeight / SCREEN.h);
-  const scale = s >= 1 ? Math.max(1, Math.floor(s * 4) / 4) : s; // quarter steps keep pixels mostly even
-  canvas.style.width = `${Math.floor(SCREEN.w * scale)}px`;
-  canvas.style.height = `${Math.floor(SCREEN.h * scale)}px`;
-}
-window.addEventListener('resize', fit);
-fit();
 
 const game = new GameManager(canvas);
 window.__game = game; // debugging / automated acceptance checks
@@ -25,4 +16,5 @@ if (params.has('test2')) import('../tests/phase2.js').then((m) => m.runPhase2(ga
 if (params.has('test3')) import('../tests/phase3.js').then((m) => m.runPhase3(game));
 if (params.has('test6')) import('../tests/phase6.js').then((m) => m.runPhase6(game, { quick: params.has('quick') }));
 if (params.has('test5')) import('../tests/phase5.js').then((m) => m.runPhase5(game, { quick: params.has('quick') }));
+if (params.has('test7')) import('../tests/phase7.js').then((m) => m.runPhase7(game));
 if (params.has('test4')) import('../tests/phase4.js').then((m) => m.runPhase4(game, { quick: params.has('quick'), botOnly: params.has('botonly') }));
