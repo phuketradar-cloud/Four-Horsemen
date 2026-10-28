@@ -18,6 +18,7 @@ import { AudioManager } from '../audio/AudioManager.js';
 import { buildTextures } from '../render/Textures.js';
 import { buildSprites } from '../render/SpriteFactory.js';
 import { loadPortraitArt } from '../render/PortraitArt.js';
+import { loadEnemyArt } from '../render/EnemyArt.js';
 import { DungeonRenderer } from '../render/DungeonRenderer.js';
 import { Effects } from '../render/Effects.js';
 import { DungeonManager, TILE } from '../systems/DungeonManager.js';
@@ -84,6 +85,8 @@ export class GameManager {
     this.sprites = buildSprites();
     // painted Horseman portraits replace the drawn ones once loaded (drawn ones stay as fallback)
     this.portraitsReady = loadPortraitArt(this.sprites).catch(() => []);
+    // painted enemy art (data/enemyArt.js) replaces drawn sprite sets the same way
+    this.enemyArtReady = loadEnemyArt(this.sprites).catch(() => []);
     this.renderer = new DungeonRenderer(this.textures, this.sprites);
     // Phase 6 main menu (HTML layers over the cleaned concept art); skipped where there is no DOM
     try { this.titleScreen = typeof document !== 'undefined' && document.body ? new TitleScreen(this) : null; } catch (err) { console.warn('[title] menu unavailable, using the canvas title', err); this.titleScreen = null; }
