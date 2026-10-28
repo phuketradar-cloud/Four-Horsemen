@@ -452,7 +452,7 @@ function portraitHooded(kind) {
   }
   return p.c;
 }
-function sealed(src) {
+export function sealed(src) {
   const { c, ctx } = makeCanvas(src.width, src.height);
   ctx.drawImage(src, 0, 0);
   ctx.globalAlpha = 0.6; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, c.width, c.height); ctx.globalAlpha = 1;
