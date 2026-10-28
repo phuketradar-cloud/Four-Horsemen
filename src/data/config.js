@@ -75,6 +75,8 @@ export const KEYMAP = {
   // former COMMANDS-menu entries that had no key of their own
   KeyG: 'fight', KeyX: 'aboutFace', KeyZ: 'runAway', KeyV: 'nextWeapon', KeyB: 'cast',
   F11: 'fullscreen',
+  // party play: take control of Conquest / War / Famine / Death, or cycle through the living
+  F1: 'control1', F2: 'control2', F3: 'control3', F4: 'control4', Backquote: 'controlNext',
   BracketLeft: 'menuUp', BracketRight: 'menuDown',
   Enter: 'confirm', NumpadEnter: 'confirm',
 };
