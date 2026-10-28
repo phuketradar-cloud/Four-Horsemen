@@ -119,6 +119,7 @@ export class DungeonRenderer {
     for (const c of dm.chests.values()) add(c.x, c.y, { type: 'chest', c });
     for (const pr of game.combat.projectiles) add(Math.round(pr.x), Math.round(pr.y), { type: 'proj', pr });
     for (const f of dm.featureList || []) if (f.blocking) add(f.x, f.y, { type: 'feature', f });
+    for (const a of game.party?.renderList() || []) add(a.x, a.y, { type: 'ally', a }); // companions in view
     this.danger = new Map((game.dangerTiles || []).map((d) => [d.y * 1000 + d.x, d]));
 
     const L = VIEW.lateral;
@@ -332,7 +333,7 @@ export class DungeonRenderer {
 
   _drawCellSprites(list, game, t) {
     // chests / features first (back), then items, enemies, projectiles
-    const rank = { feature: 0, chest: 0, item: 1, enemy: 2, proj: 3 };
+    const rank = { feature: 0, chest: 0, item: 1, ally: 2, enemy: 2, proj: 3 };
     list.sort((a, b) => rank[a.type] - rank[b.type]);
     let itemIdx = 0;
     for (const s of list) {
@@ -345,8 +346,21 @@ export class DungeonRenderer {
         this._drawEnemy(s.e, game, t);
       } else if (s.type === 'proj') {
         this._drawProjectile(s.pr);
+      } else if (s.type === 'ally') {
+        this._drawAlly(s.a, t);
       }
     }
+  }
+
+  // A companion Horseman seen from behind (the combat back-view art), with a small name tag.
+  _drawAlly(a, t) {
+    const set = this.spr.player?.[a.classId] || this.spr.player?.war;
+    if (!set) return;
+    const frames = set[WEAPONS[a.weaponId]?.fp || a.weaponId] || set.sword;
+    const img = frames[a.swing ? 1 : 0];
+    const r = this._billboard(img, a.x, a.y, 0.82, { ox: a.swing ? Math.sin(t * 30) * 2 : 0 });
+    if (r && r.h > 24) drawText(this.ctx, a.name, r.x + r.w / 2, r.y - 9, a.color, { align: 'center' });
+    if (r && a.guarding) { const sh = this.spr.ui.shield_hi; this.ctx.drawImage(sh, Math.round(r.x + r.w / 2 - 6), Math.round(r.y + r.h * 0.35), 12, 12); }
   }
 
   // Ordered-dither elliptical glow, denser toward the centre (cached per colour).
