@@ -7,7 +7,7 @@
 //    keeps its size and the feet stay on the same baseline in every frame
 // 3. high-quality downscale (halving steps) so the idle body is BODY_H pixels tall
 // Returns { pose: dataURL(png) } for assets/enemies/<id>/<pose>.png.
-export const POSES = ['idle', 'windup', 'attack', 'hurt'];
+export const ALL_POSES = ['idle', 'windup', 'attack', 'hurt'];
 const BODY_H = 128;
 
 const load = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
@@ -86,6 +86,7 @@ function downscale(src, sx, sy, sw, sh, w, h) {
 // mis-scale them: each pose is then cropped to its own figure, scaled to the idle body height and
 // stood on the same baseline, centred.
 function bakeSeparate(cut, boxes) {
+  const POSES = Object.keys(cut);
   const k = {}, size = {};
   for (const p of POSES) {
     const b = boxes[p], h = b.y1 - b.y0 + 1, w = b.x1 - b.x0 + 1;
@@ -104,9 +105,13 @@ function bakeSeparate(cut, boxes) {
   return { frames: out, size: [W, H], bodyH: BODY_H, bodyTop: 0, mode: 'separate' };
 }
 
+// A pose without a source file is skipped (the game falls back to idle for it); idle is required.
 export async function bakeEnemy(id, base = '/assets/enemies/src/') {
   const cut = {};
-  for (const p of POSES) cut[p] = cutBackground(await load(`${base}${id}_${p}.webp`));
+  for (const p of ALL_POSES) {
+    try { cut[p] = cutBackground(await load(`${base}${id}_${p}.webp`)); } catch { if (p === 'idle') throw new Error(`${id}: idle source missing`); }
+  }
+  const POSES = Object.keys(cut);
   const boxes = Object.fromEntries(POSES.map((p) => [p, bbox(cut[p])]));
   const sameFrame = POSES.every((p) => cut[p].width === cut.idle.width && cut[p].height === cut.idle.height);
   if (!sameFrame) return bakeSeparate(cut, boxes);
