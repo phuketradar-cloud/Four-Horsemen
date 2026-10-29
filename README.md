@@ -22,7 +22,8 @@ Dark-fantasy dungeon crawler แนว Wizardry: เดินทีละช่�
    - ย่อให้ลำตัวสูง 128 px แล้วบันทึกเป็น `assets/enemies/<sprite>/<pose>.png`
 3. เพิ่มชื่อ sprite ใน `src/data/enemyArt.js` (ใส่ `size: 1.3` ได้ถ้าอยากให้ตัวใหญ่กว่าเดิม)
 
-ตอนนี้มีภาพวาดแล้ว: **skeleton**, **abyssbeast** (size 1.5), **captain** (Fallen Knight Captain — Fallen Knight ธรรมดายังเป็น sprite เดิม)
+ตอนนี้มีภาพวาดแล้ว: **skeleton**, **abyssbeast** (size 1.5), **captain** (Fallen Knight Captain — Fallen Knight ธรรมดายังเป็น sprite เดิม), **abaddon** (บอสสุดท้าย — มี 3 ท่า ไม่มี hurt)
+- ท่าไหนไม่มีไฟล์ต้นฉบับ ตัว bake จะข้ามไป และในเกมจะใช้ภาพ idle แทน (ต้องมี idle เสมอ)
 - ถ้ารูปแต่ละท่ามาคนละขนาด (เช่นชุด abyssbeast) ตัว bake จะครอปแต่ละท่าตามตัวเอง ย่อให้สูงเท่าท่า idle แล้ววางเท้าไว้บนเส้นพื้นเดียวกัน
 
 **การแสดงผลในเกม** (`render/EnemyArt.js`)
