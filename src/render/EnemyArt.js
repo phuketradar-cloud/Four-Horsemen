@@ -45,8 +45,8 @@ export async function loadEnemyArt(sprites, art = ENEMY_ART, base = ENEMY_ART_BA
         idle: [idle, toCanvas(f.idle, 1)],                       // 1px breathing bob
         walk: [toCanvas(f.walk || f.idle, -2), toCanvas(f.walk || f.idle, 1)], // step bounce
         windup: pose('windup'), attack: pose('attack'), hurt: pose('hurt'),
-        artScale: (oldBody / oldFrame) * (idle.height / newBody),
-        combatMult: oldBody / newBody,
+        artScale: (oldBody / oldFrame) * (idle.height / newBody) * (def.size || 1),
+        combatMult: (oldBody / newBody) * (def.size || 1),
         painted: true,
       };
       done.push(key);
