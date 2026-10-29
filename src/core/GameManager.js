@@ -819,19 +819,19 @@ export class GameManager {
     if (this.scene === 'cleared') return ['safe'];
     if (!this.player) return ['explore'];
     const p = this.player;
-    if (this.bossCtl.active) { this._lastFight = { t: this.time, state: 'boss' }; return ['boss']; }
+    if (this.bossCtl.active) { this._lastFight = { t: this.time, state: 'boss' }; return ['boss', { variant: this.bossCtl.boss?.def?.id }]; }
     const foes = this.enemies.filter((e) => e.alive && !e.illusion && ['detect', 'chase', 'attack', 'hurt'].includes(e.state) && Math.abs(e.x - p.x) + Math.abs(e.y - p.y) <= 6);
     if (foes.length) { this._lastFight = { t: this.time, state: foes.some((e) => e.rank === 'elite' || e.champion) ? 'elite' : 'combat' }; return [this._lastFight.state]; }
     if (this._lastFight && this.time - this._lastFight.t < 3) return [this._lastFight.state];
     const room = this.dungeon.roomAt(p.x, p.y);
     if (room?.type === 'rest') return ['safe'];
     const audio = this.run ? DUNGEONS[this.run.dungeonId]?.audio : null;
-    return ['explore', this.audio.ambienceMusicOpts(audio)];
+    return ['explore', { ...this.audio.ambienceMusicOpts(audio), variant: this.run?.dungeonId }];
   }
   updateMusic() {
     const [state, opts] = this._desiredMusic();
-    if (state !== this.musicState || (opts && opts.root !== this._musicRoot)) {
-      this.musicState = state; this._musicRoot = opts?.root;
+    if (state !== this.musicState || (opts && opts.root !== this._musicRoot) || opts?.variant !== this._musicVariant) {
+      this.musicState = state; this._musicRoot = opts?.root; this._musicVariant = opts?.variant;
       this.audio.setMusic(state, opts || {});
     }
   }
