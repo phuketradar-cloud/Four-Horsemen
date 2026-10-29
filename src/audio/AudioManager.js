@@ -1,7 +1,9 @@
 // Procedural Web Audio SFX + ambient drone + adaptive music (Phase 6). No audio files needed (no licensing
 // concerns; every sound is an original synthesized placeholder). Each sound has a minimum retrigger
 // interval and there is a global voice cap, so sounds never stack up. Buses: master -> sfx / music / ambient.
+// Music states listed in data/musicFiles.js play a looped file instead (audio/FileMusic.js).
 import { MusicEngine } from './MusicEngine.js';
+import { FileMusic } from './FileMusic.js';
 const MIN_INTERVAL = {
   step: 0.12, hit: 0.05, crit: 0.06, sword: 0.08, axe: 0.15, crossbow: 0.15, dagger: 0.05, punch: 0.08,
   enemySwipe: 0.1, enemyHeavy: 0.2, windup: 0.2, boneDeath: 0.15, armorDeath: 0.2,
@@ -38,7 +40,7 @@ export class AudioManager {
     this.unknown = new Set();
   }
 
-  stats() { return { requested: { ...this.requested }, played: { ...this.played }, unknown: [...this.unknown], musicState: this.musicState || null, voices: this.voices, musicNotes: this.music?.live || 0 }; }
+  stats() { return { requested: { ...this.requested }, played: { ...this.played }, unknown: [...this.unknown], musicState: this.musicState || null, musicFile: this.files?.current || null, voices: this.voices, musicNotes: this.music?.live || 0 }; }
 
   unlock() {
     if (this.ctx) { if (this.ctx.state === 'suspended') this.ctx.resume(); return; }
@@ -53,7 +55,9 @@ export class AudioManager {
     this.ambientGain = this.ctx.createGain();
     this.sfxGain.connect(this.master); this.musicGain.connect(this.master); this.ambientGain.connect(this.master);
     this.master.connect(this.ctx.destination);
-    try { this.music = new MusicEngine(this.ctx, this.musicGain); if (this.musicState) this.music.setState(this.musicState, this.musicOpts || {}); } catch (err) { console.warn('[audio] music engine failed', err); this.music = null; }
+    try { this.music = new MusicEngine(this.ctx, this.musicGain); } catch (err) { console.warn('[audio] music engine failed', err); this.music = null; }
+    try { this.files = new FileMusic(this.ctx, this.musicGain); this.files.onReady = () => this._routeMusic(); } catch (err) { console.warn('[audio] music files unavailable', err); this.files = null; }
+    if (this.musicState) this._routeMusic();
     // shared noise buffer
     const len = this.ctx.sampleRate;
     this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
@@ -73,14 +77,30 @@ export class AudioManager {
   }
 
   // Adaptive music state (idempotent; safe to call every frame). Works before unlock (remembered).
+  // opts.variant (dungeon or boss id) picks a per-dungeon / per-boss file first ('boss:abaddon').
   setMusic(state, opts = {}) {
-    if (state === this.musicState && !opts.root) return;
+    if (state === this.musicState && !opts.root && opts.variant === this.musicOpts?.variant) return;
     this.musicState = state; this.musicOpts = opts;
-    if (this.music) try { this.music.setState(state, opts); } catch (err) { console.warn('[audio] music', err); }
+    this._routeMusic();
+  }
+  // a listed file that can play wins (synth goes silent); otherwise the synthesized state plays
+  _routeMusic() {
+    const state = this.musicState, opts = this.musicOpts || {};
+    if (!state) return;
+    let key = null;
+    try {
+      const keys = opts.variant ? [`${state}:${opts.variant}`, state] : [state];
+      key = this.files ? this.files.pick(keys) : null;
+      if (key) this.files.play(key); else this.files?.stop();
+    } catch (err) { console.warn('[audio] music file', err); key = null; }
+    if (this.music) try { this.music.setState(key ? 'silence' : state, opts); } catch (err) { console.warn('[audio] music', err); }
   }
   stinger(id, then = null) {
     this.requested['stinger:' + id] = (this.requested['stinger:' + id] || 0) + 1;
-    if (this.music && !this.settings.muted) try { this.music.stinger(id, then); } catch (err) { console.warn('[audio] stinger', err); }
+    if (this.music && !this.settings.muted) try {
+      this.music.stinger(id, then);
+      if (this.files?.current) this.files.duck((this.music.sting?.until ?? 0) - this.ctx.currentTime);
+    } catch (err) { console.warn('[audio] stinger', err); }
   }
 
   // ---- primitives
