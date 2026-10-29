@@ -82,10 +82,34 @@ function downscale(src, sx, sy, sw, sh, w, h) {
   return out;
 }
 
+// Paintings made separately (different canvas sizes) are not framed alike, so a shared crop would
+// mis-scale them: each pose is then cropped to its own figure, scaled to the idle body height and
+// stood on the same baseline, centred.
+function bakeSeparate(cut, boxes) {
+  const k = {}, size = {};
+  for (const p of POSES) {
+    const b = boxes[p], h = b.y1 - b.y0 + 1, w = b.x1 - b.x0 + 1;
+    k[p] = BODY_H / h;
+    size[p] = [Math.round(w * k[p]), BODY_H];
+  }
+  const W = Math.max(...POSES.map((p) => size[p][0])) + 2, H = BODY_H;
+  const out = {};
+  for (const p of POSES) {
+    const b = boxes[p];
+    const fr = downscale(cut[p], b.x0, b.y0, b.x1 - b.x0 + 1, b.y1 - b.y0 + 1, size[p][0], size[p][1]);
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    c.getContext('2d').drawImage(fr, Math.round((W - fr.width) / 2), H - fr.height);
+    out[p] = c.toDataURL('image/png');
+  }
+  return { frames: out, size: [W, H], bodyH: BODY_H, bodyTop: 0, mode: 'separate' };
+}
+
 export async function bakeEnemy(id, base = '/assets/enemies/src/') {
   const cut = {};
   for (const p of POSES) cut[p] = cutBackground(await load(`${base}${id}_${p}.webp`));
   const boxes = Object.fromEntries(POSES.map((p) => [p, bbox(cut[p])]));
+  const sameFrame = POSES.every((p) => cut[p].width === cut.idle.width && cut[p].height === cut.idle.height);
+  if (!sameFrame) return bakeSeparate(cut, boxes);
   const body = boxes.idle;
   const cx = (body.x0 + body.x1) / 2;
   const top = Math.min(...POSES.map((p) => boxes[p].y0)), bottom = Math.max(...POSES.map((p) => boxes[p].y1));
