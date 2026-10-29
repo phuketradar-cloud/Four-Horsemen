@@ -18,6 +18,9 @@ const TYPES = {
   '.woff2': 'font/woff2',
   '.ico': 'image/x-icon',
   '.md': 'text/markdown; charset=utf-8',
+  '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
+  '.m4a': 'audio/mp4',
 };
 
 http.createServer((req, res) => {
@@ -28,7 +31,18 @@ http.createServer((req, res) => {
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404); res.end('Not found'); return; }
     // CORS: lets local tools/pages read the dev files (dev server only, local machine only)
-    res.writeHead(200, { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*' });
+    const head = { 'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-cache', 'Access-Control-Allow-Origin': '*', 'Accept-Ranges': 'bytes' };
+    // byte ranges: <audio> streams and seeks music files this way
+    const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || '');
+    if (m && (m[1] || m[2])) {
+      const start = m[1] ? Number(m[1]) : Math.max(0, data.length - Number(m[2]));
+      const end = m[1] && m[2] ? Math.min(Number(m[2]), data.length - 1) : data.length - 1;
+      if (start > end || start >= data.length) { res.writeHead(416, { 'Content-Range': `bytes */${data.length}` }); res.end(); return; }
+      res.writeHead(206, { ...head, 'Content-Range': `bytes ${start}-${end}/${data.length}`, 'Content-Length': end - start + 1 });
+      res.end(data.subarray(start, end + 1));
+      return;
+    }
+    res.writeHead(200, head);
     res.end(data);
   });
 }).listen(PORT, () => console.log(`Four Horsemen dev server: http://localhost:${PORT}`));

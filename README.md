@@ -33,6 +33,23 @@ Dark-fantasy dungeon crawler แนว Wizardry: เดินทีละช่�
 - เอฟเฟกต์เดิมใช้กับภาพใหม่ได้ทั้งหมด: เรืองแดงตอนง้าง, กะพริบขาวตอนโดนตี, เงาตามระยะ, ภาพใน bestiary
 - ถ้าโหลดไฟล์ไม่ได้ จะใช้ภาพที่โค้ดวาดเหมือนเดิม
 
+**เพลงจากไฟล์** (`src/data/musicFiles.js` + `audio/FileMusic.js`)
+
+1. วางไฟล์ mp3 / ogg / m4a ที่ `assets/music/`
+2. ใส่ชื่อไฟล์ใน `MUSIC_FILES` ของ `src/data/musicFiles.js`
+   - key คือ state ของเพลง: title, explore, combat, elite, boss, safe, sanctuary, story
+   - ใส่เพลงเฉพาะได้ เช่น `'explore:ashen_catacombs'` (ดันเจี้ยนเดียว) และ `'boss:abaddon'` (บอสตัวเดียว) ถ้าไม่มีไฟล์เฉพาะ จะใช้ไฟล์ของ state หลัก
+   - ปรับเสียงรายเพลงได้ด้วย `{ file: 'boss.mp3', gain: 0.8 }`
+
+การทำงาน
+- เพลงเล่นวนต่อเนื่องและ crossfade ตอนเปลี่ยน state ใช้ปุ่มปรับเสียง MUSIC / MASTER / mute เดิม
+- ไฟล์ stream ทีละเพลง และโหลดตอนที่ state นั้นถูกเรียกครั้งแรกเท่านั้น
+- elite / boss / story เริ่มเล่นจากต้นเพลงทุกครั้ง เพลงอื่นเล่นต่อจากจุดเดิม (ตั้งได้ใน `MUSIC_FILE_TUNING.restart`)
+- stinger (victory / bossDefeat / defeat / chapter) ยังเป็นเสียงสังเคราะห์ เพลงจากไฟล์จะเบาลงชั่วคราวระหว่างที่ stinger เล่น
+- state ที่ไม่มีไฟล์ ไฟล์ยังโหลดไม่เสร็จ หรือไฟล์เปิดไม่ได้ จะใช้เพลงสังเคราะห์เดิม
+- ตอนนี้มีไฟล์ 7 เพลง: title, explore, elite, boss, safe, sanctuary, story ส่วน combat ยังเป็นเพลงสังเคราะห์
+- ใช้เฉพาะเพลงที่มีสิทธิ์ใช้งาน เพราะเกมเผยแพร่สาธารณะบน GitHub Pages
+
 **ผลทดสอบ:** ชุดทดสอบทั้ง 8 ชุดผ่าน (`?test2` ครั้งแรกตกข้อ crossbow ซึ่งเป็น flake ที่รู้จักอยู่แล้ว รันซ้ำผ่าน 52/52)
 
 ## Party Combat: Horsemen ทั้ง 4 สู้พร้อมกัน (ผู้เล่นคุม 1, AI คุม 3)
@@ -215,7 +232,7 @@ State machine: FOLLOW → SEARCH → APPROACH → ATTACK → DEFEND → RECOVER
 | **Save reliability** | ยืนยันแล้ว | ตรวจ snapshot ก่อนเขียน (ข้อมูลเสียไม่ทับ save ดี), backup slot อัตโนมัติ, โหลดพัง → ลอง backup → ไม่สำเร็จจะหยุดที่หน้า title พร้อม error ค้าง (**ไม่รีเซ็ตเกมเงียบ ๆ อีกต่อไป** ซึ่งเป็นบั๊กเดิม), เก็บสำเนา save ที่เสียไว้ 1 ชุด, storage เต็ม/ใช้ไม่ได้รายงานเหตุผล, autosave ระหว่างสู้ถูกเลื่อนไปทำทันทีหลังจบการต่อสู้, ตัวบอก SAVED/SAVE FAILED |
 | **12 สถานการณ์ save/load ตามสเปก** | ยืนยันแล้ว | ครบทั้ง 12 ข้อใน `?test6` (ข้อ 12 "ปิดแล้วเปิดใหม่" จำลองด้วย SaveSystem instance ใหม่อ่านจาก localStorage) |
 | **Balance** | ยืนยันแล้ว (ด้วย simulation) | ดูตารางด้านล่าง; ค่าปรับทั้งหมดอยู่ใน `data/balance.js` |
-| ระบบเสียงไฟล์จริง / เพลงที่แต่งโดยมนุษย์ | ยังไม่ทำ | เสียงและเพลงทั้งหมดเป็น placeholder สังเคราะห์ (ต้นฉบับ ไม่มีปัญหาลิขสิทธิ์) |
+| เพลงจากไฟล์จริง | ยืนยันแล้ว | `data/musicFiles.js` + `audio/FileMusic.js`: 7 state ใช้ไฟล์ mp3 ใน `assets/music/` ส่วน state ที่ไม่มีไฟล์ยังเป็นเพลงสังเคราะห์ ตรวจใน browser: crossfade, fallback ของ variant, ไฟล์หาย → synth, ลดเสียงตอน stinger เสียงประกอบ (SFX) ยังเป็นเสียงสังเคราะห์ |
 | ปรับขนาดตัวอักษร / UI scaling | ยังไม่ทำ | ความละเอียดตายตัว 640×480 pixel font; เกมขยายทั้งจอตามหน้าต่าง (integer/quarter scale) แต่ไม่มีตัวเลือกขยายเฉพาะตัวอักษร |
 | ท่าทางผู้เล่นเฉพาะตอนชนะ/ใช้ไอเทม | บางส่วน | มีแฟลชพอร์เทรต (heal/level/damage) + particle แต่ไม่มี sprite ท่าทางเฉพาะ |
 
