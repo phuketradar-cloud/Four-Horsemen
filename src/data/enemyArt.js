@@ -11,4 +11,5 @@ export const ENEMY_ART = {
   skeleton: { poses: ['idle', 'windup', 'attack', 'hurt'] }, // Hollow Skeleton (+ summoned skeletons)
   abyssbeast: { poses: ['idle', 'windup', 'attack', 'hurt'], size: 1.5 },
   captain: { poses: ['idle', 'windup', 'attack', 'hurt'] }, // Fallen Knight Captain (crypt boss variant) // Abyssal Beast (The Abyssal Gate)
+  abaddon: { poses: ['idle', 'windup', 'attack'] }, // Abaddon, the Destroyer (final boss) - no hurt painting: hurt uses idle
 };
