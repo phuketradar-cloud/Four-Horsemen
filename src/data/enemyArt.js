@@ -9,5 +9,6 @@ export const ENEMY_ART_BASE = 'assets/enemies/';
 
 export const ENEMY_ART = {
   skeleton: { poses: ['idle', 'windup', 'attack', 'hurt'] }, // Hollow Skeleton (+ summoned skeletons)
-  abyssbeast: { poses: ['idle', 'windup', 'attack', 'hurt'], size: 1.5 }, // Abyssal Beast (The Abyssal Gate)
+  abyssbeast: { poses: ['idle', 'windup', 'attack', 'hurt'], size: 1.5 },
+  captain: { poses: ['idle', 'windup', 'attack', 'hurt'] }, // Fallen Knight Captain (crypt boss variant) // Abyssal Beast (The Abyssal Gate)
 };
