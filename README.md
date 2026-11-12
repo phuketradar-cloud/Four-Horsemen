@@ -33,6 +33,65 @@ Dark-fantasy dungeon crawler แนว Wizardry: เดินทีละช่�
 - เอฟเฟกต์เดิมใช้กับภาพใหม่ได้ทั้งหมด: เรืองแดงตอนง้าง, กะพริบขาวตอนโดนตี, เงาตามระยะ, ภาพใน bestiary
 - ถ้าโหลดไฟล์ไม่ได้ จะใช้ภาพที่โค้ดวาดเหมือนเดิม
 
+**ภาพวาด Horsemen มองจากด้านหลัง** (`src/data/heroArt.js` + `render/HeroArt.js`)
+
+ใช้กับเพื่อนร่วมทีมที่เดินอยู่ข้างหน้า และตัวผู้เล่นในฉากต่อสู้ระยะใกล้
+
+1. วางรูปต้นฉบับที่ `assets/heroes/src/<id>_<pose>.(webp|png|jpg)`
+   - id คือ war, conquest, famine หรือ death
+   - pose คือ idle (ยืน) และ attack (โจมตี)
+   - ใช้พื้นเขียว (#00FF00) ได้ ตัว bake จะตัดพื้นเขียวและลบขอบเขียวที่ติดตัวออกให้
+2. Bake ใน dev server:
+   ```js
+   const m = await import('/tools/make-enemy-art.js');
+   await m.bakeEnemy('<id>', '/assets/heroes/src/', ['idle', 'attack']);
+   ```
+   ได้ไฟล์ `assets/heroes/<id>/<pose>.png`
+3. เพิ่มใน `HERO_ART` พร้อมระบุอาวุธที่อยู่ในภาพ เช่น `war: { weapon: 'sword', ... }`
+
+การแสดงผล
+- ภาพวาดแสดงเฉพาะตอนที่ Horseman ถืออาวุธตามที่ระบุ ถ้าถืออาวุธอื่นจะใช้ pixel art เดิม
+- ลำตัวสูงเท่า pixel art เดิม
+- ตอนนี้มีครบทั้ง 4 ตัว: **war** (ดาบ), **conquest** (หน้าไม้), **famine** (มีด), **death** (ขวาน)
+- หมอกที่ลากยาวถึงขอบภาพ (เช่นหมอกใต้เท้า DEATH) ให้ bake ด้วย `{ ground: 0.4 }` หมอกจะค่อยๆ จางลงก่อนถึงขอบภาพ แทนที่จะจบเป็นกรอบสี่เหลี่ยม:
+  `bakeEnemy('death', '/assets/heroes/src/', ['idle', 'attack'], { ground: 0.4 })`
+- เส้นแสงบางมาก เช่นรัศมีเหนือหัว CONQUEST จะหายไปเมื่อย่อภาพเหลือ 128 px
+
+**ภาพวาดฉาก: ผนัง / ประตู / พื้น / เพดาน** (`src/data/sceneArt.js` + `render/SceneArt.js`)
+
+1. วางภาพสี่เหลี่ยมจัตุรัสที่ `assets/scenes/` (ขนาดเท่าไรก็ได้ เกมย่อให้เอง)
+2. เพิ่มชุดใน `SCENE_ART` พร้อมระบุ `themes` (id ของ theme ใน `data/dungeons/*.js`) ที่จะใช้ชุดนี้
+
+ภาพแต่ละส่วน
+- **ผนัง**: กระเบื้องอิฐต่อกันได้ ขนาด 128×128 ในเกม ผนังพิเศษทุกแบบ (คบเพลิง, คันโยก, rune, สวิตช์ลับ, ผนังลับ) วาดทับหินจากภาพนี้ ผนังลับจึงไม่โดดออกมา
+- **ประตู**: ทั้งบานรวมกรอบ
+- **พื้น / เพดาน**: 1 ช่องของดันเจี้ยน มองจากบน/ล่าง เกมเอียงตามมุมมองให้เอง
+
+การแสดงผล
+- ความมืดตามระยะทางยังใส่ทับภาพเหมือนเดิม
+- สีของ theme ใส่ทับด้วย ยกเว้นชุดที่ตั้ง `tint: false` (ภาพที่มีสีของดันเจี้ยนอยู่แล้ว)
+- ส่วนไหนไม่มีไฟล์ ใช้ลายที่โค้ดวาดเหมือนเดิม
+- ตอนนี้มี:
+  - ชุด **ashen**: Ashen Catacombs และ Crypt of the First Seal
+  - ชุด **warfront** (`tint: false`): The Red Warfront
+  - ชุด **harvest** (`tint: false`): The Black Harvest
+  - ชุด **pale** (`tint: false`): The Pale Threshold
+  - ชุด **abyss** (`tint: false`): The Abyssal Gate
+  - ชุด **revelation** (`tint: false`): The Last Revelation
+
+**ภาพวาดอาวุธในมือ (มุมมองบุคคลที่หนึ่ง)** (`src/data/weaponArt.js` + `render/WeaponArt.js`)
+
+1. วางภาพบนพื้นเขียวที่ `assets/weapons/` เกมตัดพื้นเขียวตอนโหลดเอง (ใช้ `render/ChromaKey.js` ตัวเดียวกับตัว bake)
+2. ตั้งค่าใน `WEAPON_ART`
+   - `pivot`: ตำแหน่งกำปั้นในภาพ (สัดส่วน 0-1) อาวุธหมุนรอบจุดนี้ตอนฟัน
+   - `reach`: ความยาวจากกำปั้นถึงปลายอาวุธบนจอ (พิกเซล)
+   - `lift`: ยกอาวุธขึ้นให้เห็นถุงมือเหล็ก
+   - `width`: ความกว้างบนจอ (ใช้กับหน้าไม้)
+
+อาวุธทุกชนิดในเกมใช้ภาพ 5 แบบนี้ร่วมกัน: greatsword → sword, hammer/scythe → axe, spear → dagger, bow → crossbow
+- ตอนนี้มี: sword, axe, dagger, crossbow, crossbowEmpty
+- fists (มือเปล่า) ยังเป็น pixel art
+
 **เพลงจากไฟล์** (`src/data/musicFiles.js` + `audio/FileMusic.js`)
 
 1. วางไฟล์ mp3 / ogg / m4a ที่ `assets/music/`
