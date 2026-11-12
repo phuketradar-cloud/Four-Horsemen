@@ -1,12 +1,15 @@
 // Bakes painted enemy art into in-game frames (run in the browser on the dev server):
 //   const m = await import('/tools/make-enemy-art.js'); const out = await m.bakeEnemy('skeleton');
 // Source: assets/enemies/src/<id>_<pose>.webp (any size; idle / windup / attack / hurt).
-// 1. background removal: real alpha is kept; an opaque white / light-grey (checkerboard) backdrop is
-//    flood-filled away from the image border (only light, colourless pixels connected to the edge)
+// 1. background removal: real alpha is kept; a chroma-key green backdrop is keyed out (plus despill);
+//    an opaque white / light-grey (checkerboard) backdrop is flood-filled away from the image border
+//    (only light, colourless pixels connected to the edge)
 // 2. one crop rectangle for ALL poses (union of the figures, centred on the idle body) so the body
 //    keeps its size and the feet stay on the same baseline in every frame
 // 3. high-quality downscale (halving steps) so the idle body is BODY_H pixels tall
 // Returns { pose: dataURL(png) } for assets/enemies/<id>/<pose>.png.
+import { isGreenScreen, keyGreen } from '../src/render/ChromaKey.js';
+
 export const ALL_POSES = ['idle', 'windup', 'attack', 'hurt'];
 const BODY_H = 128;
 
@@ -19,6 +22,7 @@ function cutBackground(img) {
   let transparentEdge = 0;
   for (let i = 0; i < W; i++) if (d[(i) * 4 + 3] < 20) transparentEdge++;
   if (transparentEdge > W * 0.5) return c; // already has real transparency
+  if (isGreenScreen(d, W, H)) { keyGreen(d); x.putImageData(id, 0, 0); return c; }
   const bg = (p) => { const r = d[p], g = d[p + 1], b = d[p + 2]; return Math.min(r, g, b) > 196 && Math.max(r, g, b) - Math.min(r, g, b) < 14; };
   const seen = new Uint8Array(W * H), q = new Int32Array(W * H);
   let qh = 0, qt = 0;
@@ -64,7 +68,10 @@ function bbox(c) {
   return { x0, y0, x1, y1 };
 }
 
-function downscale(src, sx, sy, sw, sh, w, h) {
+// 4x4 ordered dither (same look as the game's dithered glows), used where alpha fades out
+const BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+
+function downscale(src, sx, sy, sw, sh, w, h, ditherFromY = Infinity) {
   let cur = document.createElement('canvas'); cur.width = sw; cur.height = sh;
   cur.getContext('2d').drawImage(src, sx, sy, sw, sh, 0, 0, sw, sh);
   while (cur.width / 2 >= w) {
@@ -75,9 +82,13 @@ function downscale(src, sx, sy, sw, sh, w, h) {
   const out = document.createElement('canvas'); out.width = w; out.height = h;
   const x = out.getContext('2d'); x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
   x.drawImage(cur, 0, 0, w, h);
-  // crisp alpha: pixel-art sprites have hard edges
+  // crisp alpha: pixel-art sprites have hard edges; below ditherFromY a fading alpha is dithered
   const id = x.getImageData(0, 0, w, h);
-  for (let i = 3; i < id.data.length; i += 4) id.data[i] = id.data[i] < 110 ? 0 : 255;
+  for (let i = 3; i < id.data.length; i += 4) {
+    const px = ((i - 3) / 4) % w, py = Math.floor((i - 3) / 4 / w);
+    const thr = py >= ditherFromY ? (BAYER[(py % 4) * 4 + (px % 4)] + 0.5) * 16 : 110;
+    id.data[i] = id.data[i] < thr ? 0 : 255;
+  }
   x.putImageData(id, 0, 0);
   return out;
 }
@@ -105,11 +116,37 @@ function bakeSeparate(cut, boxes) {
   return { frames: out, size: [W, H], bodyH: BODY_H, bodyTop: 0, mode: 'separate' };
 }
 
+// Ground effects painted to the image edge (mist, smoke) would end in a hard rectangle: in the lowest
+// `ground` fraction of the image they are tapered into a mound that fades out before the side edges.
+function fadeGround(c, ground) {
+  const x = c.getContext('2d'), W = c.width, H = c.height, id = x.getImageData(0, 0, W, H), d = id.data;
+  const y0 = H * (1 - ground), cx = W / 2, soft = W * 0.12;
+  for (let y = Math.ceil(y0); y < H; y++) {
+    const t = (y - y0) / (H - y0), blend = Math.min(1, (y - y0) / (H * 0.06));
+    const half = (W / 2) * (0.55 + 0.45 * t);
+    for (let px = 0; px < W; px++) {
+      const m = Math.max(0, Math.min(1, (half - Math.abs(px - cx)) / soft));
+      const k = (y * W + px) * 4 + 3;
+      d[k] = Math.round(d[k] * (1 - blend * (1 - m)));
+    }
+  }
+  x.putImageData(id, 0, 0);
+}
+
+// first source that exists: <id>_<pose>.webp / .png / .jpg
+async function loadSource(base, id, pose) {
+  for (const ext of ['webp', 'png', 'jpg']) { try { return await load(`${base}${id}_${pose}.${ext}`); } catch { /* next */ } }
+  throw new Error(`${id}_${pose}: no source`);
+}
+
 // A pose without a source file is skipped (the game falls back to idle for it); idle is required.
-export async function bakeEnemy(id, base = '/assets/enemies/src/') {
+// Horseman back views use the same baking: bakeEnemy('war', '/assets/heroes/src/', ['idle', 'attack']).
+// opts.ground (0..1): taper + dither ground mist that reaches the image edges (e.g. 0.35 for DEATH).
+export async function bakeEnemy(id, base = '/assets/enemies/src/', poses = ALL_POSES, opts = {}) {
   const cut = {};
-  for (const p of ALL_POSES) {
-    try { cut[p] = cutBackground(await load(`${base}${id}_${p}.webp`)); } catch { if (p === 'idle') throw new Error(`${id}: idle source missing`); }
+  for (const p of poses) {
+    try { cut[p] = cutBackground(await loadSource(base, id, p)); } catch { if (p === 'idle') throw new Error(`${id}: idle source missing`); }
+    if (cut[p] && opts.ground) fadeGround(cut[p], opts.ground);
   }
   const POSES = Object.keys(cut);
   const boxes = Object.fromEntries(POSES.map((p) => [p, bbox(cut[p])]));
@@ -123,6 +160,7 @@ export async function bakeEnemy(id, base = '/assets/enemies/src/') {
   const rect = { x: Math.round(cx - half), y: top, w: Math.round(half * 2), h: bottom - top + 1 };
   const W = Math.round(rect.w * k), H = Math.round(rect.h * k);
   const out = {};
-  for (const p of POSES) out[p] = downscale(cut[p], rect.x, rect.y, rect.w, rect.h, W, H).toDataURL('image/png');
+  const ditherFromY = opts.ground ? Math.round((cut.idle.height * (1 - opts.ground) - rect.y) * k) : Infinity;
+  for (const p of POSES) out[p] = downscale(cut[p], rect.x, rect.y, rect.w, rect.h, W, H, ditherFromY).toDataURL('image/png');
   return { frames: out, size: [W, H], bodyH: BODY_H, bodyTop: Math.round((body.y0 - top) * k) };
 }
