@@ -1,5 +1,6 @@
 import { makeCanvas, hash2, BAYER4 } from './gfx.js';
 import { VIEW } from '../data/config.js';
+import { sceneArtFor } from './SceneArt.js';
 
 // Procedural 64x64 pixel-art wall textures, pre-shaded into N dithered fog levels.
 // Placeholder-friendly: replace any generator with a loaded PNG of the same size.
@@ -19,7 +20,14 @@ function fromPixels(fn) {
   return c;
 }
 
+// Painted wall (render/SceneArt.js): while a painted set is being built, stone() returns the painted
+// pixel at the full-resolution position (paintedXY) instead of the drawn brick, so every wall kind
+// that is "stone + something" (torch, lever, runes, hidden switch, secret crack) sits on the painting.
+let paintedStone = null;
+const paintedXY = [0, 0];
+
 function stone(x, y, seed = 1, moss = 1) {
+  if (paintedStone) return paintedStone(paintedXY[0], paintedXY[1]);
   const row = Math.floor(y / 16);
   const off = row % 2 ? 16 : 0;
   const bx = Math.floor((x + off) / 32);
@@ -204,14 +212,36 @@ function hiddenSwitch(pressed) {
   };
 }
 
+// size-P version of fromPixels for painted sets: the 64-grid wall functions are sampled at (x/k, y/k),
+// stone() reads the painting at the real (x, y)
+function fromPixelsAt(P, fn) {
+  const k = P / T;
+  const { c, ctx } = makeCanvas(P, P);
+  const img = ctx.createImageData(P, P);
+  for (let y = 0; y < P; y++) for (let x = 0; x < P; x++) {
+    paintedXY[0] = x; paintedXY[1] = y;
+    const [r, g, b] = fn(Math.floor(x / k), Math.floor(y / k));
+    const i = (y * P + x) * 4;
+    img.data[i] = r; img.data[i + 1] = g; img.data[i + 2] = b; img.data[i + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+function sampler(canvas) {
+  const S = canvas.width, d = canvas.getContext('2d').getImageData(0, 0, S, canvas.height).data;
+  return (x, y) => { const i = (y * S + x) * 4; return [d[i], d[i + 1], d[i + 2]]; };
+}
+
 function shade(src, level) {
-  const { c, ctx } = makeCanvas(T, T);
+  const S = src.width;
+  const { c, ctx } = makeCanvas(S, S);
   ctx.drawImage(src, 0, 0);
   if (level === 0) return c;
-  const img = ctx.getImageData(0, 0, T, T);
+  const img = ctx.getImageData(0, 0, S, S);
   const dark = Math.min(0.94, level / (VIEW.shadeLevels - 1) * 0.94);
-  for (let y = 0; y < T; y++) for (let x = 0; x < T; x++) {
-    const i = (y * T + x) * 4;
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    const i = (y * S + x) * 4;
     const bay = BAYER4[(y & 3) * 4 + (x & 3)];
     let f = 1 - dark + (bay - 0.5) * 0.12;
     f = f < 0 ? 0 : f;
@@ -225,18 +255,31 @@ function shade(src, level) {
 }
 
 // theme: { wall: [r,g,b] multipliers, moss: 0..1 } (data/dungeons). Default = the Phase 1 crypt.
+// A painted scene set for the theme (data/sceneArt.js) replaces the wall stone and the door; the other
+// wall kinds are then built at the painting's size on top of the painted stone.
 export function buildTextures(theme = null) {
-  const mult = theme?.wall || [1, 1, 1];
+  const art = sceneArtFor(theme?.id || 'crypt');
+  if (art?.wall) {
+    paintedStone = sampler(art.wall);
+    try { return buildSet(theme, art, (fn) => fromPixelsAt(art.wall.width, fn)); } finally { paintedStone = null; }
+  }
+  return buildSet(theme, art, fromPixels);
+}
+
+function buildSet(theme, art, fromPixels) {
+  const mult = (art && !art.tint) ? [1, 1, 1] : theme?.wall || [1, 1, 1];
   const moss = theme?.moss ?? 1;
   const tint = (fn, tintIt = true) => (x, y) => {
     const c = fn(x, y);
     return tintIt ? [Math.min(255, c[0] * mult[0]), Math.min(255, c[1] * mult[1]), Math.min(255, c[2] * mult[2])] : c;
   };
   const wallFn = (x, y) => stone(x, y, 1, moss);
+  const doorPx = art?.door ? sampler(art.door) : null, dk = art?.door ? art.door.width / (art.wall?.width || T) : 1;
+  const paintedDoor = () => doorPx(Math.floor(paintedXY[0] * dk), Math.floor(paintedXY[1] * dk));
   const base = {
     wall: fromPixels(tint(wallFn)),
     torch: fromPixels(tint(torchWall)),
-    door: fromPixels(tint(door)),
+    door: art?.door ? fromPixelsAt(art.wall ? art.wall.width : T, tint(paintedDoor)) : fromPixels(tint(door)),
     gate: fromPixels(tint(gate)),
     secret: fromPixels(tint((x, y) => {
       const s = wallFn(x, y);
@@ -258,5 +301,5 @@ export function buildTextures(theme = null) {
     shaded[k] = [];
     for (let l = 0; l < VIEW.shadeLevels; l++) shaded[k].push(shade(tex, l));
   }
-  return { base, shaded, size: T };
+  return { base, shaded, size: base.wall.width };
 }

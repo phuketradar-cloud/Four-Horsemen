@@ -4,6 +4,7 @@ import { VIEW, LAYOUT, DIRS } from '../data/config.js';
 import { RARITIES } from '../data/items.js';
 import { WEAPONS } from '../data/weapons.js';
 import { buildTextures } from './Textures.js';
+import { sceneArtFor } from './SceneArt.js';
 import { TILE } from '../systems/DungeonManager.js';
 
 // Classic Wizardry-style first-person view rendered purely with 2D canvas operations:
@@ -36,13 +37,31 @@ export class DungeonRenderer {
   setTheme(theme) {
     const id = theme?.id || 'crypt';
     if (this.themeId === id) return;
+    this.theme = theme;
     if (!this.themeCache[id]) this.themeCache[id] = { tex: buildTextures(theme), bg: [this._buildFloorCeil(0, theme), this._buildFloorCeil(1, theme)], vig: this._buildVignette(theme.vignette) };
     const c = this.themeCache[id];
     this.tex = c.tex; this.bg = c.bg; this.vignette = c.vig; this.themeId = id;
   }
 
+  // painted scenery finished loading (render/SceneArt.js): drop the cached themes and rebuild the current one
+  refreshScene() {
+    const theme = this.theme || null, id = this.themeId;
+    this.themeCache = {};
+    this.themeId = null;
+    if (theme) this.setTheme(theme);
+    else {
+      this.themeCache[id || 'crypt'] = { tex: buildTextures(null), bg: [this._buildFloorCeil(0), this._buildFloorCeil(1)], vig: this._buildVignette() };
+      const c = this.themeCache[id || 'crypt'];
+      this.tex = c.tex; this.bg = c.bg; this.vignette = c.vig; this.themeId = id || 'crypt';
+    }
+  }
+
   _buildFloorCeil(parity, theme = null) {
     const fm = theme?.floor || [1, 1, 1], cm = theme?.ceil || [1, 1, 1];
+    // painted floor / ceiling (one cell per image), sampled per screen pixel
+    const art = sceneArtFor(theme?.id || 'crypt');
+    const px = (cv) => cv && { S: cv.width, d: cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data };
+    const pf = px(art?.floor), pc = px(art?.ceiling);
     const { c, ctx } = makeCanvas(W, H);
     const img = ctx.createImageData(W, H);
     for (let y = 0; y < H; y++) {
@@ -56,7 +75,12 @@ export class DungeonRenderer {
         const fx = gx - Math.floor(gx), fz = gz - Math.floor(gz);
         const tileH = hash2(Math.floor(gx * 2), Math.floor(gz * 2), floor ? 21 : 33);
         let r, g, b;
-        if (floor) {
+        const pt = floor ? pf : pc;
+        if (pt) {
+          const i = (Math.min(pt.S - 1, Math.floor(fz * pt.S)) * pt.S + Math.min(pt.S - 1, Math.floor(fx * pt.S))) * 4;
+          const m = art.tint ? (floor ? fm : cm) : [1, 1, 1];
+          r = pt.d[i] * m[0]; g = pt.d[i + 1] * m[1]; b = pt.d[i + 2] * m[2];
+        } else if (floor) {
           const grout = fx < 0.03 || fz < 0.03 || Math.abs(fx - 0.5) < 0.015 || Math.abs(fz - 0.5) < 0.015;
           r = 58 + tileH * 18; g = 54 + tileH * 14; b = 42 + tileH * 10;
           if (grout) { r = 22; g = 20; b = 15; }
@@ -160,7 +184,8 @@ export class DungeonRenderer {
     const x0 = Math.floor(CX + ((x - 0.5) * F) / z), x1 = Math.ceil(CX + ((x + 0.5) * F) / z);
     if (x1 < 0 || x0 > W) return;
     const top = Math.floor(CY - (0.5 * F) / z), h = Math.ceil(F / z);
-    this.ctx.drawImage(this.tex.shaded[kind][shadeLevel(z)], 0, 0, 64, 64, x0, top, x1 - x0, h);
+    const img = this.tex.shaded[kind][shadeLevel(z)];
+    this.ctx.drawImage(img, 0, 0, img.width, img.height, x0, top, x1 - x0, h);
     if (kind === 'torch') this._flame(CX + (x * F) / z, CY - (0.22 * F) / z, 0.16 * F / z, t, z);
   }
 
@@ -177,9 +202,10 @@ export class DungeonRenderer {
       if (z < zNear - 0.001 || z > zFar + 0.001) continue;
       let u = z - d;
       if (X > 0) u = 1 - u;
-      const col = Math.max(0, Math.min(63, Math.floor(u * 64)));
+      const img = shaded[shadeLevel(z)], S = img.width;
+      const col = Math.max(0, Math.min(S - 1, Math.floor(u * S)));
       const top = Math.floor(CY - (0.5 * F) / z), h = Math.ceil(F / z);
-      this.ctx.drawImage(shaded[shadeLevel(z)], col, 0, 1, 64, c, top, 1, h);
+      this.ctx.drawImage(img, col, 0, 1, S, c, top, 1, h);
     }
     if (kind === 'torch') {
       const z = d + 0.5;
@@ -358,7 +384,7 @@ export class DungeonRenderer {
     if (!set) return;
     const frames = set[WEAPONS[a.weaponId]?.fp || a.weaponId] || set.sword;
     const img = frames[a.swing ? 1 : 0];
-    const r = this._billboard(img, a.x, a.y, 0.82, { ox: a.swing ? Math.sin(t * 30) * 2 : 0 });
+    const r = this._billboard(img, a.x, a.y, 0.82 * (img.artScale || 1), { ox: a.swing ? Math.sin(t * 30) * 2 : 0 }); // painted art: same body size
     if (r && r.h > 24) drawText(this.ctx, a.name, r.x + r.w / 2, r.y - 9, a.color, { align: 'center' });
     if (r && a.guarding) { const sh = this.spr.ui.shield_hi; this.ctx.drawImage(sh, Math.round(r.x + r.w / 2 - 6), Math.round(r.y + r.h * 0.35), 12, 12); }
   }
@@ -530,13 +556,14 @@ export class DungeonRenderer {
     if (id === 'crossbow') {
       const reload = ws.cooldownLeft > 0 && !a;
       const img = reload ? this.spr.fp.crossbowEmpty : this.spr.fp.crossbow;
-      let y = H - img.height * 2 + 18 + bob;
+      const cs = img.drawScale || 2; // painted art (render/WeaponArt.js) is already at screen size
+      let y = H - img.height * cs + 18 + bob;
       if (a) y += Math.sin(p * Math.PI) * 14;
       if (reload) y += 60 * Math.min(1, ws.cooldownLeft / ws.cooldown);
-      ctx.drawImage(img, Math.round(CX - img.width), Math.round(y), img.width * 2, img.height * 2);
+      ctx.drawImage(img, Math.round(CX - (img.width * cs) / 2), Math.round(y), Math.round(img.width * cs), Math.round(img.height * cs));
     } else {
       const img = this.spr.fp[id] || this.spr.fp.fists;
-      const s = 2;
+      const s = img.drawScale || 2;
       let ang = -0.25, ox = 0, oy = 0, sc = 1;
       if (a) {
         if (a.type === 'slash') {
@@ -551,8 +578,8 @@ export class DungeonRenderer {
           ang = -0.1; ox = -60 * k; oy = -50 * k; sc = 1 + 0.25 * k;
         }
       }
-      const pivX = img.width / 2, pivY = img.height * 0.82;
-      const baseX = CX + 106 + ox, baseY = H + 14 + bob + oy; // right hand, anchored to the view centre
+      const pivX = img.pivX ?? img.width / 2, pivY = img.pivY ?? img.height * 0.82; // painted: the gripping fist
+      const baseX = CX + 106 + ox, baseY = H + 14 + bob + oy - (img.lift || 0); // right hand, anchored to the view centre
       ctx.translate(Math.round(baseX), Math.round(baseY));
       ctx.rotate(ang + jolt * 0.35);
       ctx.drawImage(img, Math.round(-pivX * s * sc), Math.round(-pivY * s * sc), Math.round(img.width * s * sc), Math.round(img.height * s * sc));
@@ -628,9 +655,9 @@ export class DungeonRenderer {
     const lunge = ws.anim ? Math.sin(Math.min(1, ws.anim.t / ws.anim.dur) * Math.PI) : 0;
     const set = this.spr.player[game.hero.classId] || this.spr.player.war;
     const pimg = (set[WEAPONS[ws.weaponId]?.fp || ws.weaponId] || set.sword)[lunge > 0.3 ? 1 : 0];
-    const ps = 2.4;
+    const ps = 2.4 * (pimg.combatMult || 1); // painted art: same body size as the pixel art
     const guardOff = game.player.guarding ? 6 : 0;
-    ctx.drawImage(pimg, Math.round(CX - 174 + lunge * 26), Math.round(H - pimg.height * ps + 26 - lunge * 10 + guardOff), Math.round(pimg.width * ps), Math.round(pimg.height * ps));
+    ctx.drawImage(pimg, Math.round(CX - 116 - (pimg.width * ps) / 2 + lunge * 26), Math.round(H - pimg.height * ps + 26 - lunge * 10 + guardOff), Math.round(pimg.width * ps), Math.round(pimg.height * ps));
     if (game.player.guarding) {
       const sh = this.spr.ui.shield_hi;
       ctx.drawImage(sh, CX - 102, H - 120, 24, 24);
