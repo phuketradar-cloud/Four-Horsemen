@@ -19,6 +19,9 @@ import { buildTextures } from '../render/Textures.js';
 import { buildSprites } from '../render/SpriteFactory.js';
 import { loadPortraitArt } from '../render/PortraitArt.js';
 import { loadEnemyArt } from '../render/EnemyArt.js';
+import { loadHeroArt } from '../render/HeroArt.js';
+import { loadSceneArt } from '../render/SceneArt.js';
+import { loadWeaponArt } from '../render/WeaponArt.js';
 import { DungeonRenderer } from '../render/DungeonRenderer.js';
 import { Effects } from '../render/Effects.js';
 import { DungeonManager, TILE } from '../systems/DungeonManager.js';
@@ -87,7 +90,13 @@ export class GameManager {
     this.portraitsReady = loadPortraitArt(this.sprites).catch(() => []);
     // painted enemy art (data/enemyArt.js) replaces drawn sprite sets the same way
     this.enemyArtReady = loadEnemyArt(this.sprites).catch(() => []);
+    // painted Horseman back views (data/heroArt.js)
+    this.heroArtReady = loadHeroArt(this.sprites).catch(() => []);
+    // painted first-person weapons (data/weaponArt.js)
+    this.weaponArtReady = loadWeaponArt(this.sprites).catch(() => []);
     this.renderer = new DungeonRenderer(this.textures, this.sprites);
+    // painted scenery (data/sceneArt.js): the renderer rebuilds its wall/floor textures once loaded
+    this.sceneArtReady = loadSceneArt().then((done) => { if (done.length) this.renderer.refreshScene(); return done; }).catch(() => []);
     // Phase 6 main menu (HTML layers over the cleaned concept art); skipped where there is no DOM
     try { this.titleScreen = typeof document !== 'undefined' && document.body ? new TitleScreen(this) : null; } catch (err) { console.warn('[title] menu unavailable, using the canvas title', err); this.titleScreen = null; }
     this.effects = new Effects();
