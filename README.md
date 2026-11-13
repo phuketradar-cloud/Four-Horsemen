@@ -24,6 +24,16 @@ Dark-fantasy dungeon crawler แนว Wizardry: เดินทีละช่�
 
 ตอนนี้มีภาพวาดแล้ว: **skeleton**, **abyssbeast** (size 1.5), **captain** (Fallen Knight Captain — Fallen Knight ธรรมดายังเป็น sprite เดิม), **abaddon** (บอสสุดท้าย — มี 3 ท่า ไม่มี hurt)
 - ท่าไหนไม่มีไฟล์ต้นฉบับ ตัว bake จะข้ามไป และในเกมจะใช้ภาพ idle แทน (ต้องมี idle เสมอ)
+- เพิ่มแล้ว: **knight** (Fallen Knight) และอีก 20 ตัวจากภาพรวม 4 ท่า: gravekeeper, cerberus, tyrant, thrall, stalker, harvester, harvesterBoss, revenant, soulbound, lich, sentinel, executor, gorgon, nephilim, chimera, locust, beast, seraph, prophet, dragon
+- ยังเป็น pixel art: crawler, warden, legionnaire, hound, executioner, cultist (prompt อยู่ใน `docs/enemy-prompts.md`)
+
+**ภาพรวม 4 ท่าในภาพเดียว** (`assets/enemies/src/<sprite>_sheet.jpg`)
+- จัดท่าแบบ 2×2: ซ้ายบน idle, ขวาบน windup, ซ้ายล่าง attack, ขวาล่าง hurt ภาพจะเป็นสี่เหลี่ยมจัตุรัสหรือ 16:9 ก็ได้
+- Bake: `const m = await import('/tools/make-enemy-art.js'); await m.bakeSheet('<sprite>')`
+- ตัว bake แยกท่าตามรูปร่างของตัวละคร ไม่ได้ตัดตามเส้นกึ่งกลางตรงๆ อาวุธที่ยื่นข้ามเส้นจึงยังติดอยู่กับเจ้าของ
+- ท่าที่วาดชิดกันจนติดเป็นก้อนเดียว จะถูกตัดตามเส้นกึ่งกลางแทน
+- เส้นแบ่งช่องสีดำ (ถ้ามี) ถูกลบออกให้อัตโนมัติ
+- ทุกท่าย่อด้วยสัดส่วนเดียวกับท่า idle และวางเท้าบนเส้นพื้นเดียวกัน ท่าย่อตัวจึงยังเตี้ยกว่าท่ายืน ไม่ถูกยืดให้สูงเท่ากัน
 - ถ้ารูปแต่ละท่ามาคนละขนาด (เช่นชุด abyssbeast) ตัว bake จะครอปแต่ละท่าตามตัวเอง ย่อให้สูงเท่าท่า idle แล้ววางเท้าไว้บนเส้นพื้นเดียวกัน
 
 **การแสดงผลในเกม** (`render/EnemyArt.js`)
