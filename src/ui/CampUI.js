@@ -7,12 +7,14 @@ import { ITEM_DEFS } from '../data/items.js';
 import { drawText, wrapText } from '../render/PixelFont.js';
 import { floorLevel } from '../systems/DungeonGenerator.js';
 import { NPCS } from '../data/campaign.js';
+import { drawNpcFace, NPC_FACE } from '../render/NpcArt.js';
 
 // The Pale Camp (Phase 4 hub): pick a dungeon and difficulty, see recommended levels, warnings,
 // boss status, local materials and rewards; craft at the forge; manage gear; retrieve the stash.
 // Keyboard: up/down select a dungeon, ENTER twice to enter; TAB / I / C / K panels; ESC pause.
 const LIST = { x: 12, y: 44, w: 220, h: 46, step: 49 };
-const NPC_ROW = { x: 12, y: 392, size: 40, gap: 4 };
+// NPC faces: a big column in the empty left margin of the 16:9 screen (x < 0 in CLASSIC coordinates)
+const NPC_COL = { x: -122, y: 4, w: NPC_FACE.w, h: NPC_FACE.h, step: 96 };
 const DET = { x: 244, y: 44, w: 384, h: 330 };
 
 function materialsOf(def) {
@@ -38,16 +40,19 @@ export function drawCamp(ctx, g, t) {
 
   // ---- NPCs of the sanctuary (talk: quests, story, class lines)
   Object.values(NPCS).forEach((npc, i) => {
-    const x = NPC_ROW.x + i * (NPC_ROW.size + NPC_ROW.gap), y = NPC_ROW.y, s = NPC_ROW.size;
-    const hov = ui.button(x, y, s, s, () => g.talkTo(npc.id));
-    const por = g.sprites.npcPortraits?.[npc.portrait];
-    if (por) ctx.drawImage(por, x, y, s, s); else { ctx.fillStyle = '#2a2018'; ctx.fillRect(x, y, s, s); }
+    const x = NPC_COL.x, y = NPC_COL.y + i * NPC_COL.step, w = NPC_COL.w, h = NPC_COL.h;
+    const hov = ui.button(x, y, w, h, () => g.talkTo(npc.id));
+    drawNpcFace(ctx, g.sprites.npcPortraits?.[npc.portrait], x, y, w, h);
+    // name strip along the bottom of the face
+    ctx.globalAlpha = 0.7; ctx.fillStyle = '#000'; ctx.fillRect(x + 1, y + h - 11, w - 2, 10); ctx.globalAlpha = 1;
+    drawText(ctx, npc.name.toUpperCase().replace(/^(ELDER|BROTHER|THE) /, ''), x + w / 2, y + h - 10, hov ? '#ffd040' : '#d8c8a0', { align: 'center' });
     const d = g.quests.dialogue(npc.id);
     const mark = d.turnIns.length ? ['?', '#7ac060'] : d.offers.length ? ['!', '#ffd040'] : null;
-    if (mark) { ctx.fillStyle = '#000'; ctx.fillRect(x + s - 9, y + 1, 8, 10); drawText(ctx, mark[0], x + s - 5, y + 2, mark[1], { align: 'center' }); }
-    if (hov) { ctx.strokeStyle = '#ffd040'; ctx.strokeRect(x + 0.5, y + 0.5, s - 1, s - 1); ui.tooltip = { text: `${npc.name} - ${npc.title}${mark ? (mark[0] === '?' ? ' (QUEST READY)' : ' (NEW QUEST)') : ''}`, x: x + s / 2, y: y - 8 }; }
+    if (mark) { ctx.fillStyle = '#000'; ctx.fillRect(x + w - 12, y + 2, 10, 12); drawText(ctx, mark[0], x + w - 7, y + 4, mark[1], { align: 'center' }); }
+    if (hov) { ctx.strokeStyle = '#ffd040'; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h); ctx.lineWidth = 1; ui.tooltip = { text: `${npc.name} - ${npc.title}${mark ? (mark[0] === '?' ? ' (QUEST READY)' : ' (NEW QUEST)') : ''}`, x: x + w / 2 + 70, y: y + h / 2 }; }
   });
-  drawText(ctx, 'TALK: CLICK A FACE   J: JOURNAL', NPC_ROW.x, NPC_ROW.y + NPC_ROW.size + 4, th.textDim);
+  drawText(ctx, 'TALK: CLICK A FACE', NPC_COL.x + NPC_COL.w / 2, NPC_COL.y + 5 * NPC_COL.step, th.textDim, { align: 'center' });
+  drawText(ctx, 'J: JOURNAL', NPC_COL.x + NPC_COL.w / 2, NPC_COL.y + 5 * NPC_COL.step + 10, th.textDim, { align: 'center' });
 
   // ---- dungeon list
   const items = [];

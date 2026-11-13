@@ -60,6 +60,9 @@ export function drawInventory(ctx, g) {
   // toolbar: sort + filters
   drawText(ctx, 'SORT', M.x + 8, M.y + 26, th.textDim);
   SORTS.forEach((s, i) => ui.textButton(ctx, M.x + 36 + i * 42, M.y + 23, 40, 12, s.toUpperCase(), th, () => { st.sort = s; }, { selected: st.sort === s }));
+  // auto-equip the best gear (Y / Shift+Y)
+  ui.textButton(ctx, M.x + 256, M.y + 23, 74, 12, 'AUTO EQUIP', th, () => g.autoEquipBest(false));
+  if (g.party?.enabled) ui.textButton(ctx, M.x + 334, M.y + 23, 74, 12, 'AUTO: PARTY', th, () => g.autoEquipBest(true));
   ui.textButton(ctx, M.x + 330, M.y + 6, 110, 12, `SLOT: ${st.slot === 'all' ? 'ALL' : st.slot === 'material' ? 'MATERIALS' : SLOT_DEFS[st.slot].short}`, th,
     () => { st.slot = SLOT_FILTERS[(SLOT_FILTERS.indexOf(st.slot) + 1) % SLOT_FILTERS.length]; });
   ui.textButton(ctx, M.x + 446, M.y + 6, 122, 12, `RARITY: ${st.rarity === 'any' ? 'ANY' : RARITIES[st.rarity].label}`, th,
@@ -124,7 +127,7 @@ export function drawInventory(ctx, g) {
     drawText(ctx, 'SELECT AN ITEM TO SEE ITS STATS,', dx + dw / 2, M.y + 160, th.textDim, { align: 'center' });
     drawText(ctx, 'AFFIXES AND COMPARISON WITH YOUR GEAR', dx + dw / 2, M.y + 172, th.textDim, { align: 'center' });
   }
-  drawText(ctx, 'ARROWS: SELECT  ENTER: EQUIP/USE  U: UNEQUIP  TAB/ESC: CLOSE  I: CHARACTER  C: CRAFTING', M.x + 8, M.y + M.h - 12, th.textDim);
+  drawText(ctx, 'ENTER: EQUIP/USE  U: UNEQUIP  Y: AUTO EQUIP  SHIFT+Y: PARTY  ESC: CLOSE  I: CHAR  C: CRAFT', M.x + 8, M.y + M.h - 12, th.textDim);
 }
 
 // MaterialDefinition view: tier, stack limit, value, where it drops, what uses it; sell 1 / all.

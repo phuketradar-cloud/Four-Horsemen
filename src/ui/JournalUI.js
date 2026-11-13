@@ -6,6 +6,7 @@ import { BOSSES } from '../data/bosses.js';
 import { ITEM_DEFS } from '../data/items.js';
 import { SETS } from '../data/sets.js';
 import { drawText, wrapText } from '../render/PixelFont.js';
+import { drawNpcFace, NPC_FACE } from '../render/NpcArt.js';
 
 // Phase 5 UI: journal [J] (quests, codex, bestiary, chapters/ending), NPC dialogue and chapter
 // title cards. Mouse-first; UP/DOWN + ENTER work on the action lists (g.activeMenu).
@@ -170,13 +171,13 @@ export function drawDialogue(ctx, g, t) {
   ui.frame(ctx, B.x, B.y, B.w, B.h, th, { border: 5, panel: '#0c0a07' });
   ui.textButton(ctx, B.x + B.w - 24, B.y + 6, 15, 11, 'X', th, () => g.closePanel());
   const por = g.sprites.npcPortraits?.[d.npc.portrait];
-  if (por) ctx.drawImage(por, B.x + 12, B.y + 12, 64, 64);
-  drawText(ctx, d.npc.name.toUpperCase(), B.x + 88, B.y + 14, '#ffd040', { scale: 1 });
-  drawText(ctx, d.npc.title, B.x + 88, B.y + 26, th.textDim);
+  drawNpcFace(ctx, por, B.x + 12, B.y + 12, NPC_FACE.w, NPC_FACE.h);
+  drawText(ctx, d.npc.name.toUpperCase(), B.x + 100, B.y + 14, '#ffd040', { scale: 1 });
+  drawText(ctx, d.npc.title, B.x + 100, B.y + 26, th.textDim);
   let y = B.y + 40;
-  y = para(ctx, `"${d.line}"`, B.x + 88, y, th.text, 70) + 3;
-  if (d.byClass) y = para(ctx, d.byClass, B.x + 88, y, g.hero.def.colors?.accent || th.highlight, 70);
-  y = Math.max(y, B.y + 86) + 6;
+  y = para(ctx, `"${d.line}"`, B.x + 100, y, th.text, 68) + 3;
+  if (d.byClass) y = para(ctx, d.byClass, B.x + 100, y, g.hero.def.colors?.accent || th.highlight, 68);
+  y = Math.max(y, B.y + 12 + NPC_FACE.h) + 6;
   ctx.fillStyle = th.bronzeDark; ctx.fillRect(B.x + 10, y, B.w - 20, 1); y += 8;
   const actions = [];
   for (const qd of d.turnIns) {
