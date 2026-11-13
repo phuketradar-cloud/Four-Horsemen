@@ -456,6 +456,7 @@ export function sealed(src) {
   const { c, ctx } = makeCanvas(src.width, src.height);
   ctx.drawImage(src, 0, 0);
   ctx.globalAlpha = 0.6; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, c.width, c.height); ctx.globalAlpha = 1;
+  ctx.scale(src.width / 44, src.height / 52); // chains + padlock are laid out on the 44x52 grid (works for 2x art too)
   const link = (x, y) => { ctx.fillStyle = '#6a6458'; ctx.fillRect(x, y, 3, 2); ctx.fillStyle = '#9a9488'; ctx.fillRect(x, y, 3, 1); };
   for (let i = 0; i < 16; i++) { link(i * 3, i * 3.3); link(41 - i * 3, i * 3.3); }
   ctx.fillStyle = '#7a6a3a'; ctx.fillRect(17, 22, 10, 9); ctx.fillStyle = '#c0a050'; ctx.fillRect(17, 22, 10, 1);

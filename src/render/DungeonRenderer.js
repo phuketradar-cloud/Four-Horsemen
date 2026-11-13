@@ -385,9 +385,31 @@ export class DungeonRenderer {
       font: f.used ? F2.fontUsed : F2.font, shrine: f.used ? F2.shrineUsed : F2.shrine, scroll: f.used ? F2.scrollUsed : F2.scroll,
     }[f.kind];
     if (!img) return;
-    const h = { stairs: 0.42, exit: 0.95, tablet: 0.45, font: 0.36, shrine: 0.55, scroll: 0.42 }[f.kind] || 0.4;
-    const live = !f.used && f.kind !== 'stairs' && !(f.kind === 'exit' && !game.run?.bossDefeated);
-    this._billboard(img, f.x, f.y, h, live ? { outline: OUTLINE.feature, outlineAlpha: pulse(game.realTime) } : {});
+    const h = { stairs: img.painted ? 1.0 : 0.42, exit: 0.95, tablet: 0.45, font: 0.36, shrine: 0.55, scroll: 0.42 }[f.kind] || 0.4;
+    const open = f.kind === 'exit' && game.run?.bossDefeated;
+    const live = !f.used && !(f.kind === 'exit' && !open);
+    const t = game.realTime || 0;
+    const r = this._billboard(img, f.x, f.y, h, live ? { outline: OUTLINE.feature, outlineAlpha: pulse(t) } : {});
+    if (open && r && img.painted) this._portalFx(r, t);
+  }
+
+  // Open exit portal: a breathing light in the vortex and sparks drifting out of it (additive).
+  _portalFx(r, t) {
+    const ctx = this.ctx, cx = r.x + r.w / 2, cy = r.y + r.h * 0.52, rad = r.w * 0.34 * (1 + Math.sin(t * 2.4) * 0.08);
+    const fade = Math.max(0.3, 1 - r.z / 9);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(cx, cy, 0, cx, cy, rad);
+    g.addColorStop(0, `rgba(220,235,255,${0.45 * fade})`); g.addColorStop(0.5, `rgba(130,160,255,${0.22 * fade})`); g.addColorStop(1, 'rgba(90,80,200,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(cx, cy, rad, rad * 1.6, 0, 0, Math.PI * 2); ctx.fill();
+    for (let i = 0; i < 12; i++) {
+      const ph = (t * 0.45 + i / 12) % 1, an = i * 2.39 + t * 0.8;
+      const px = cx + Math.cos(an) * r.w * 0.28 * ph, py = cy + Math.sin(an) * r.h * 0.3 * ph - ph * r.h * 0.12;
+      const sz = Math.max(1, (r.w / 60) * (1 - ph));
+      ctx.globalAlpha = (1 - ph) * 0.9 * fade; ctx.fillStyle = i % 3 ? '#b8d0ff' : '#ffffff';
+      ctx.fillRect(px - sz / 2, py - sz / 2, sz, sz);
+    }
+    ctx.restore();
   }
 
   _drawCellSprites(list, game, t) {

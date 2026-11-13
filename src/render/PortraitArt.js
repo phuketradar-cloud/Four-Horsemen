@@ -1,4 +1,5 @@
 import { sealed } from './SpriteFactory.js';
+import { RENDER_SCALE } from '../data/config.js';
 
 // Painted Horseman portraits (replace the procedural ones when the files load).
 // Files: assets/portraits/<conquest|war|famine|death>.webp, 352x416 (8x the 44x52 HUD portrait),
@@ -43,10 +44,11 @@ export async function loadPortraitArt(sprites, base = 'assets/portraits/') {
   await Promise.all(PORTRAIT_IDS.map(async (id) => {
     try {
       const img = await load(`${base}${id}.webp`);
-      const small = fit(img, W, H);
+      // baked at RENDER_SCALE x their drawn size (the frame is 2x); always drawn with an explicit size
+      const small = fit(img, W * RENDER_SCALE, H * RENDER_SCALE);
       P[id] = small;
       P[id + 'Sealed'] = sealed(small);
-      P.hi[id] = fit(img, W * 2, H * 2);
+      P.hi[id] = fit(img, W * 2 * RENDER_SCALE, H * 2 * RENDER_SCALE);
       P.card = P.card || {};
       P.card[id] = fit(img, 352, 416); // Horseman select cards (drawn at 176x208 in 2x frames)
       done.push(id);

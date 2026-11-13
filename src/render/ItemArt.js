@@ -1,4 +1,5 @@
 import { ITEM_ART_BASE, ITEM_ICON_ART, ITEM_OBJECT_ART } from '../data/itemArt.js';
+import { RENDER_SCALE } from '../data/config.js';
 
 // Replaces drawn item icons, chests and dungeon objects with the painted ones once they load
 // (data: data/itemArt.js). Each painting is fitted into the old sprite's canvas size - icons centred,
@@ -34,21 +35,23 @@ export async function loadItemArt(sprites, base = ITEM_ART_BASE) {
     try {
       const img = await load(`${base}${k}.png`);
       const old = sprites.icons[k];
-      sprites.icons[k] = fit(img, old?.width || 16, old?.height || 16, false);
+      // baked at RENDER_SCALE x the 16x16 icon size; every UI draw passes an explicit 16x16 (or larger) size
+      sprites.icons[k] = fit(img, (old?.width || 16) * RENDER_SCALE, (old?.height || 16) * RENDER_SCALE, false);
       // full-size copy for loot lying on the dungeon floor (drawn large in the 2x view)
       sprites.iconsHi = sprites.iconsHi || {};
       sprites.iconsHi[k] = fit(img, img.width, img.height, false);
       done.push(k);
     } catch { /* keep the pixel art */ }
   }));
-  await Promise.all(ITEM_OBJECT_ART.map(async ([file, group, key, used]) => {
+  await Promise.all(ITEM_OBJECT_ART.map(async ([file, group, key, used, shape]) => {
     try {
       const img = await load(`${base}${file}.png`);
       const old = sprites[group]?.[key];
       // same shape as the old sprite canvas, but up to ~256px so chests / fonts stay sharp up close
       // (the renderer sizes billboards by ratio, so a bigger canvas does not change the on-screen size)
-      const ow = old?.width || 32, oh = old?.height || 32, res = Math.max(1, Math.floor(img.height / Math.max(ow, oh)));
+      const ow = shape?.[0] || old?.width || 32, oh = shape?.[1] || old?.height || 32, res = Math.max(1, Math.floor(img.height / Math.max(ow, oh)));
       const c = fit(img, ow * res, oh * res, true);
+      c.painted = true;
       sprites[group][key] = c;
       if (used) sprites[group][used] = dimmed(c);
       done.push(file);
