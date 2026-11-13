@@ -8,7 +8,9 @@
 // assets/items/<key>.png; the game scales it down to the icon / object size when it loads.
 import { cutBackground } from './make-enemy-art.js';
 
-const SIZE = 64;
+// output square size: 64 for icons; world objects (chests, fonts, shrines...) are baked at 256 so they stay
+// sharp up close in the 2x view (bakeItems(name, map, base, D, 256))
+const ICON_SIZE = 64;
 const load = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 async function loadSheet(name, base) {
   for (const ext of ['webp', 'png', 'jpg']) { try { return await load(`${base}${name}.${ext}`); } catch { /* next */ } }
@@ -62,7 +64,7 @@ export async function findItems(name, base = '/assets/items/src/', D = 2) {
 
 // map: { itemKey: shapeIndex (as numbered by findItems) }
 // D: how far (in 4px cells) shapes reach to join - lower it when two items are drawn touching
-export async function bakeItems(name, map, base = '/assets/items/src/', D = 2) {
+export async function bakeItems(name, map, base = '/assets/items/src/', D = 2, SIZE = ICON_SIZE) {
   const cut = cutBackground(await loadSheet(name, base));
   const { items, label, owner, gw, S, W, H } = shapes(cut, 4, D);
   const src = cut.getContext('2d').getImageData(0, 0, W, H).data;
