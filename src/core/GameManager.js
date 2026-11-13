@@ -18,10 +18,13 @@ import { AudioManager } from '../audio/AudioManager.js';
 import { buildTextures } from '../render/Textures.js';
 import { buildSprites } from '../render/SpriteFactory.js';
 import { loadPortraitArt } from '../render/PortraitArt.js';
+import { loadNpcArt } from '../render/NpcArt.js';
 import { loadEnemyArt } from '../render/EnemyArt.js';
 import { loadHeroArt } from '../render/HeroArt.js';
 import { loadSceneArt } from '../render/SceneArt.js';
 import { loadWeaponArt } from '../render/WeaponArt.js';
+import { loadItemArt } from '../render/ItemArt.js';
+import { autoEquip } from '../systems/AutoEquip.js';
 import { DungeonRenderer } from '../render/DungeonRenderer.js';
 import { Effects } from '../render/Effects.js';
 import { DungeonManager, TILE } from '../systems/DungeonManager.js';
@@ -88,12 +91,16 @@ export class GameManager {
     this.sprites = buildSprites();
     // painted Horseman portraits replace the drawn ones once loaded (drawn ones stay as fallback)
     this.portraitsReady = loadPortraitArt(this.sprites).catch(() => []);
+    // painted sanctuary NPC faces (assets/npcs/<id>.webp), same fallback rule
+    this.npcArtReady = loadNpcArt(this.sprites).catch(() => []);
     // painted enemy art (data/enemyArt.js) replaces drawn sprite sets the same way
     this.enemyArtReady = loadEnemyArt(this.sprites).catch(() => []);
     // painted Horseman back views (data/heroArt.js)
     this.heroArtReady = loadHeroArt(this.sprites).catch(() => []);
     // painted first-person weapons (data/weaponArt.js)
     this.weaponArtReady = loadWeaponArt(this.sprites).catch(() => []);
+    // painted item icons, chests and dungeon objects (data/itemArt.js)
+    this.itemArtReady = loadItemArt(this.sprites).catch(() => []);
     this.renderer = new DungeonRenderer(this.textures, this.sprites);
     // painted scenery (data/sceneArt.js): the renderer rebuilds its wall/floor textures once loaded
     this.sceneArtReady = loadSceneArt().then((done) => { if (done.length) this.renderer.refreshScene(); return done; }).catch(() => []);
@@ -765,6 +772,19 @@ export class GameManager {
     if (res.ok) { this.weapons.cancel(); this.audio.play('inventory'); }
   }
 
+  // Auto-equip the best gear in the bag: the controlled Horseman, or every living Horseman (party:
+  // each companion is judged with its own stats; one item, one wielder).
+  autoEquipBest(all = false) {
+    const who = all && this.party?.enabled ? this.party.members.filter((m) => !m.fallen) : null;
+    const lines = [];
+    const run = (name) => { const d = autoEquip(this); if (d.length) lines.push(`${name}: ${d.map((p) => p.item.name).join(', ')}`); };
+    if (who) for (const m of who) this.party.withActor(m, () => run(m.name));
+    else run(this.hero.def?.name || 'You');
+    if (lines.length) { this.weapons.cancel(); this.audio.play('inventory'); for (const l of lines) this.log(`Auto-equip ${l}.`, '#c8b070'); }
+    else this.log(all ? 'Auto-equip: everyone already wears their best gear.' : 'Auto-equip: you already wear your best gear.', '#8c8467');
+    return lines.length;
+  }
+
   unequipItem(uid) {
     const res = this.equipment.unequip(uid);
     this.log(res.msg, res.ok ? '#c8b070' : '#8c8467');
@@ -1047,6 +1067,12 @@ export class GameManager {
     // Unequip shortcut inside inventory
     if (this.panel === 'inventory' && input.heldKeys.has('KeyU') && !this._uHeld) { this._uHeld = true; actions.push('unequip'); }
     if (!input.heldKeys.has('KeyU')) this._uHeld = false;
+    // Auto-equip shortcut inside inventory: Y = controlled Horseman, Shift+Y = whole party
+    if (this.panel === 'inventory' && input.heldKeys.has('KeyY') && !this._yHeld) {
+      this._yHeld = true;
+      this.autoEquipBest(input.heldKeys.has('ShiftLeft') || input.heldKeys.has('ShiftRight'));
+    }
+    if (!input.heldKeys.has('KeyY')) this._yHeld = false;
 
     if (this.scene === 'title') {
       if (this.confirm) { this._panelInput(actions); this.effects.update(dt); return; } // yes/no modal (e.g. restore defaults)
