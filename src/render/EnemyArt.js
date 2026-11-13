@@ -41,9 +41,10 @@ export async function loadEnemyArt(sprites, art = ENEMY_ART, base = ENEMY_ART_BA
       const oldIdle = old?.idle?.[0];
       const oldBody = oldIdle ? bodyHeight(oldIdle) : newBody;
       const oldFrame = oldIdle ? oldIdle.height : idle.height;
+      const u = Math.max(1, Math.round(newBody / 128)); // frames are baked at 2x (256px body): scale the offsets
       sprites[key] = {
-        idle: [idle, toCanvas(f.idle, 1)],                       // 1px breathing bob
-        walk: [toCanvas(f.walk || f.idle, -2), toCanvas(f.walk || f.idle, 1)], // step bounce
+        idle: [idle, toCanvas(f.idle, u)],                       // 1px (at 128px body) breathing bob
+        walk: [toCanvas(f.walk || f.idle, -2 * u), toCanvas(f.walk || f.idle, u)], // step bounce
         windup: pose('windup'), attack: pose('attack'), hurt: pose('hurt'),
         artScale: (oldBody / oldFrame) * (idle.height / newBody) * (def.size || 1),
         combatMult: (oldBody / newBody) * (def.size || 1),

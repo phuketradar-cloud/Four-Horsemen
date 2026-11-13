@@ -48,7 +48,7 @@ export async function loadPortraitArt(sprites, base = 'assets/portraits/') {
       P[id + 'Sealed'] = sealed(small);
       P.hi[id] = fit(img, W * 2, H * 2);
       P.card = P.card || {};
-      P.card[id] = fit(img, 176, 208); // Horseman select cards (ui/CharacterSelect.js)
+      P.card[id] = fit(img, 352, 416); // Horseman select cards (drawn at 176x208 in 2x frames)
       done.push(id);
     } catch { console.warn(`[portraits] ${id}: art not found - keeping the drawn portrait`); }
   }));

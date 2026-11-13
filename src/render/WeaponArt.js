@@ -1,5 +1,6 @@
 import { WEAPON_ART, WEAPON_ART_BASE } from '../data/weaponArt.js';
 import { keyGreen } from './ChromaKey.js';
+import { RENDER_SCALE } from '../data/config.js';
 
 // Replaces drawn first-person weapons (sprites.fp) with painted ones once they load
 // (data: data/weaponArt.js). The green backdrop is keyed out, the painting is cropped to the weapon
@@ -78,10 +79,11 @@ export async function loadWeaponArt(sprites, art = WEAPON_ART, base = WEAPON_ART
       const id = c.getContext('2d').getImageData(0, 0, c.width, c.height);
       const b = bbox(id.data, c.width, c.height);
       if (b.x1 < 0) throw new Error('empty');
-      const k = def.width ? def.width / (b.x1 - b.x0 + 1) : def.reach / Math.max(1, py - b.y0);
+      // baked at RENDER_SCALE x the on-screen size, drawn back at 1 / RENDER_SCALE (sharp in the 2x view)
+      const k = (def.width ? def.width / (b.x1 - b.x0 + 1) : def.reach / Math.max(1, py - b.y0)) * RENDER_SCALE;
       const w = Math.max(1, Math.round((b.x1 - b.x0 + 1) * k)), h = Math.max(1, Math.round((b.y1 - b.y0 + 1) * k));
       const out = shrink(c, b.x0, b.y0, b.x1 - b.x0 + 1, b.y1 - b.y0 + 1, w, h);
-      out.drawScale = 1; out.pivX = (px - b.x0) * k; out.pivY = (py - b.y0) * k; out.lift = def.lift || 0; out.painted = true;
+      out.drawScale = 1 / RENDER_SCALE; out.pivX = (px - b.x0) * k; out.pivY = (py - b.y0) * k; out.lift = def.lift || 0; out.painted = true;
       sprites.fp[key] = out;
       done.push(key);
     } catch { console.warn(`[weapon art] ${def.file}: not found - keeping the pixel-art ${key}`); }

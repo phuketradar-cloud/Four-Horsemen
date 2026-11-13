@@ -4,10 +4,11 @@ import { HORSEMEN } from '../data/characters.js';
 // Painted skill / passive / UI icons (assets/skills/<key>.png, 96x96, cut by tools/make-skill-icons.js).
 // Keys: every skill id in data/skills.js, every Horseman passive id (data/characters.js) and the
 // UI symbols below. Results (a missing file keeps the drawn pixel icon - nothing else changes):
-//   sprites.skillIcons[id]    24x24  skill bar, SKILLS panel (same size as the pixel icons)
-//   sprites.skillIconsHi[id]  32x32  Horseman select screen
-//   sprites.passiveIcons[id]  32x32  Horseman select screen
-//   sprites.uiIcons[key]      16x16 (+ uiIcons.hi[key] 32x32)  difficulty skulls, resource emblems
+// Baked at 2x the size they are drawn at (the frame renders at RENDER_SCALE 2), always drawn with an explicit size:
+//   sprites.skillIcons[id]    48x48 -> drawn 24x24  skill bar, SKILLS panel
+//   sprites.skillIconsHi[id]  64x64 -> drawn 32x32  Horseman select screen
+//   sprites.passiveIcons[id]  64x64 -> drawn 30x30  Horseman select screen
+//   sprites.uiIcons[key]      32x32 -> drawn 16x16 (+ uiIcons.hi[key] 64x64)  difficulty skulls, resource emblems
 export const UI_ICON_KEYS = ['skull_lit', 'skull_dim', 'res_dominion', 'res_fury', 'res_plague', 'res_souls'];
 
 function load(src) {
@@ -34,9 +35,9 @@ export async function loadSkillArt(sprites, base = 'assets/skills/') {
   sprites.passiveIcons = sprites.passiveIcons || {};
   sprites.uiIcons = sprites.uiIcons || { hi: {} };
   const jobs = [
-    ...Object.keys(SKILLS).map((id) => [id, (img) => { sprites.skillIcons[id] = fit(img, 24); sprites.skillIconsHi[id] = fit(img, 32); }]),
-    ...Object.values(HORSEMEN).map((h) => [h.passive.id, (img) => { sprites.passiveIcons[h.passive.id] = fit(img, 32); }]),
-    ...UI_ICON_KEYS.map((k) => [k, (img) => { sprites.uiIcons[k] = fit(img, 16); sprites.uiIcons.hi[k] = fit(img, 32); }]),
+    ...Object.keys(SKILLS).map((id) => [id, (img) => { sprites.skillIcons[id] = fit(img, 48); sprites.skillIconsHi[id] = fit(img, 64); }]),
+    ...Object.values(HORSEMEN).map((h) => [h.passive.id, (img) => { sprites.passiveIcons[h.passive.id] = fit(img, 64); }]),
+    ...UI_ICON_KEYS.map((k) => [k, (img) => { sprites.uiIcons[k] = fit(img, 32); sprites.uiIcons.hi[k] = fit(img, 64); }]),
   ];
   const done = [];
   await Promise.all(jobs.map(async ([key, apply]) => {

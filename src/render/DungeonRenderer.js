@@ -1,6 +1,6 @@
 import { makeCanvas, tinted, hash2, BAYER4, hexToRgb } from './gfx.js';
 import { drawText } from './PixelFont.js';
-import { VIEW, LAYOUT, DIRS } from '../data/config.js';
+import { VIEW, LAYOUT, DIRS, RENDER_SCALE } from '../data/config.js';
 import { RARITIES } from '../data/items.js';
 import { WEAPONS } from '../data/weapons.js';
 import { buildTextures } from './Textures.js';
@@ -13,6 +13,9 @@ import { TILE } from '../systems/DungeonManager.js';
 const W = LAYOUT.view.w, H = LAYOUT.view.h;
 const CX = W / 2, CY = H / 2;
 const F = VIEW.focal;
+// The view canvas has RS device pixels per view unit (same RENDER_SCALE as the main frame), so walls,
+// floors, painted enemies and weapons keep their detail. All drawing below stays in W x H units.
+const RS = RENDER_SCALE;
 
 const ease = (p) => 1 - Math.pow(1 - p, 3);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -25,7 +28,7 @@ export class DungeonRenderer {
   constructor(textures, sprites) {
     this.tex = textures;
     this.spr = sprites;
-    const { c, ctx } = makeCanvas(W, H);
+    const { c, ctx } = makeCanvas(W * RS, H * RS);
     this.canvas = c; this.ctx = ctx;
     this.bg = [this._buildFloorCeil(0), this._buildFloorCeil(1)];
     this.vignette = this._buildVignette();
@@ -62,14 +65,15 @@ export class DungeonRenderer {
     const art = sceneArtFor(theme?.id || 'crypt');
     const px = (cv) => cv && { S: cv.width, d: cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data };
     const pf = px(art?.floor), pc = px(art?.ceiling);
-    const { c, ctx } = makeCanvas(W, H);
-    const img = ctx.createImageData(W, H);
-    for (let y = 0; y < H; y++) {
-      const dy = y + 0.5 - CY;
+    const DW = W * RS, DH = H * RS; // built at device resolution (sampled per device pixel)
+    const { c, ctx } = makeCanvas(DW, DH);
+    const img = ctx.createImageData(DW, DH);
+    for (let y = 0; y < DH; y++) {
+      const dy = (y + 0.5) / RS - CY;
       const floor = dy > 0;
       const z = (0.5 * F) / Math.abs(dy || 0.01);
-      for (let x = 0; x < W; x++) {
-        const X = ((x + 0.5 - CX) * z) / F;
+      for (let x = 0; x < DW; x++) {
+        const X = (((x + 0.5) / RS - CX) * z) / F;
         const tz = z + parity * 0.5;
         const gx = X + 0.5, gz = tz;
         const fx = gx - Math.floor(gx), fz = gz - Math.floor(gz);
@@ -95,7 +99,7 @@ export class DungeonRenderer {
         const bay = BAYER4[(y & 3) * 4 + (x & 3)];
         let f = Math.max(0, 1 - Math.min(0.97, (z - 0.9) / 7.2) + (bay - 0.5) * 0.1);
         f = Math.min(1, f);
-        const i = (y * W + x) * 4;
+        const i = (y * DW + x) * 4;
         img.data[i] = Math.round((r * f) / 6) * 6;
         img.data[i + 1] = Math.round((g * f) / 6) * 6;
         img.data[i + 2] = Math.round((b * f) / 6) * 6;
@@ -129,7 +133,8 @@ export class DungeonRenderer {
     const fwd = DIRS[p.dir];
     const right = { dx: -fwd.dy, dy: fwd.dx };
     this.view = { px: p.x, py: p.y, fwd, right };
-    ctx.drawImage(this.bg[(p.x + p.y) & 1], 0, 0);
+    ctx.setTransform(RS, 0, 0, RS, 0, 0); // draw in view units
+    ctx.drawImage(this.bg[(p.x + p.y) & 1], 0, 0, W, H);
 
     // bucket sprites per cell
     const buckets = new Map();
@@ -195,8 +200,9 @@ export class DungeonRenderer {
     if (a > b) [a, b] = [b, a];
     const c0 = Math.max(0, Math.floor(a)), c1 = Math.min(W, Math.ceil(b));
     const shaded = this.tex.shaded[kind];
-    for (let c = c0; c < c1; c++) {
-      const den = c + 0.5 - CX;
+    const step = 1; // one strip per view column (vertical detail still doubles at RS 2; finer strips cost ~2x)
+    for (let c = c0; c < c1; c += step) {
+      const den = c + step / 2 - CX;
       if (Math.abs(den) < 0.001) continue;
       const z = (X * F) / den;
       if (z < zNear - 0.001 || z > zFar + 0.001) continue;
@@ -205,7 +211,7 @@ export class DungeonRenderer {
       const img = shaded[shadeLevel(z)], S = img.width;
       const col = Math.max(0, Math.min(S - 1, Math.floor(u * S)));
       const top = Math.floor(CY - (0.5 * F) / z), h = Math.ceil(F / z);
-      this.ctx.drawImage(img, col, 0, 1, S, c, top, 1, h);
+      this.ctx.drawImage(img, col, 0, 1, S, c, top, step, h);
     }
     if (kind === 'torch') {
       const z = d + 0.5;
@@ -585,7 +591,7 @@ export class DungeonRenderer {
       // through the sideways move and the trail instead)
       ctx.rotate((img.painted ? ang * 0.55 : ang) + jolt * 0.35);
       ctx.drawImage(img, Math.round(-pivX * s * sc), Math.round(-pivY * s * sc), Math.round(img.width * s * sc), Math.round(img.height * s * sc));
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(RS, 0, 0, RS, 0, 0); // back to view units (no rotation)
       // slash trail
       if (a && (a.type === 'slash' || (a.type === 'heavy' && p > a.windup / a.dur))) {
         const k0 = a.type === 'slash' ? p : (p - a.windup / a.dur) / (1 - a.windup / a.dur);
@@ -609,7 +615,7 @@ export class DungeonRenderer {
   renderCombat(ctx, game, t) {
     const e = game.combat.engaged;
     ctx.globalAlpha = 0.55; ctx.fillStyle = '#060202'; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
-    ctx.drawImage(this.vignette, 0, 0);
+    ctx.drawImage(this.vignette, 0, 0, W, H);
     // arena floor shadow
     ctx.fillStyle = '#0c0604';
     for (let i = 0; i < 6; i++) ctx.fillRect(CX - 120 + i * 8, H - 52 + i * 3, 240 - i * 16, 3);

@@ -43,7 +43,8 @@ export async function loadNpcArt(sprites, base = 'assets/npcs/') {
   const done = [];
   await Promise.all(Object.values(NPCS).map(async ({ portrait: id }) => {
     for (const ext of EXTS) {
-      try { const img = await load(`${base}${id}.${ext}`); sprites.npcPortraits[id] = fitFace(img); done.push(id); return; } catch { /* try the next extension */ }
+      // baked at 2x (the frame renders at RENDER_SCALE 2); always drawn at NPC_FACE size
+      try { const img = await load(`${base}${id}.${ext}`); sprites.npcPortraits[id] = fitFace(img, NPC_FACE.w * 2, NPC_FACE.h * 2); done.push(id); return; } catch { /* try the next extension */ }
     }
   }));
   return done;
