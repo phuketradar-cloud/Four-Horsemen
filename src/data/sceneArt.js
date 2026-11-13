@@ -8,7 +8,7 @@
 // A part without a file keeps its drawn texture. Theme colour multipliers still apply on top,
 // unless the set says tint: false (paintings already in the dungeon's colours).
 export const SCENE_ART_BASE = 'assets/scenes/';
-export const SCENE_TEX_SIZE = 128; // painted wall/door texture size (drawn textures stay 64 and are scaled)
+export const SCENE_TEX_SIZE = 256; // painted wall/door texture size (drawn textures stay 64 and are scaled)
 
 export const SCENE_ART = {
   ashen: {

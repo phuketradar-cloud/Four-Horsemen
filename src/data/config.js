@@ -1,6 +1,10 @@
 // Global layout + tuning constants. Fixed 960x540 (16:9) logical resolution: 1920x1080 is exactly 2x,
 // 3840x2160 4x; other window sizes are presented by core/Display.js without uneven pixels.
 export const SCREEN = { w: 960, h: 540 };
+// The frame is drawn at SCREEN x RENDER_SCALE device pixels (1920x1080) with a canvas transform, so all
+// layout stays in 960x540 coordinates while painted art and headline text keep their full detail.
+// Pixel art is drawn nearest-neighbour, so it looks exactly as before. 1 = old behaviour.
+export const RENDER_SCALE = 2;
 
 // Full-screen panels, the Horseman select screen and the camp are composed on the original 640x480
 // grid; they are drawn centred on the 16:9 screen through this origin (ctx translate + UI offset).
