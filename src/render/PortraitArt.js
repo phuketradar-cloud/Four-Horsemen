@@ -6,7 +6,7 @@ import { sealed } from './SpriteFactory.js';
 // file (any size works; it is fitted to the 44x52 shape, centred). If a file is missing or fails
 // to decode, that Horseman keeps its procedural portrait - nothing else is affected.
 // Produces, per Horseman: portraits[id] (44x52, HUD / camp / equipment), portraits[id + 'Sealed']
-// (formation panel) and portraits.hi[id] (88x104, Horseman select screen).
+// (formation panel), portraits.hi[id] (88x104) and portraits.card[id] (176x208, select cards).
 export const PORTRAIT_IDS = ['conquest', 'war', 'famine', 'death'];
 const W = 44, H = 52;
 
@@ -47,6 +47,8 @@ export async function loadPortraitArt(sprites, base = 'assets/portraits/') {
       P[id] = small;
       P[id + 'Sealed'] = sealed(small);
       P.hi[id] = fit(img, W * 2, H * 2);
+      P.card = P.card || {};
+      P.card[id] = fit(img, 176, 208); // Horseman select cards (ui/CharacterSelect.js)
       done.push(id);
     } catch { console.warn(`[portraits] ${id}: art not found - keeping the drawn portrait`); }
   }));

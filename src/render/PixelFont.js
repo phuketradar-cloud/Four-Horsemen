@@ -53,7 +53,44 @@ export function textWidth(text, scale = 1) {
   return text.length ? (text.length * GLYPH_W - 1) * scale : 0;
 }
 
-// align: 'left' | 'center' | 'right'. shadow: colour string or false.
+// ---- display font for headlines -------------------------------------------------------------
+// Text drawn at scale >= DISPLAY_FONT.minScale (titles, Horseman names, big buttons) uses a
+// heavy-metal display face once it has loaded; small text keeps the pixel font for readability.
+// The headline is fitted into exactly the box the pixel text would use (same width / height), so
+// no layout moves. If the font cannot load (offline), everything stays pixel text.
+export const DISPLAY_FONT = { family: 'Metal Mania', minScale: 2, sizeMul: 1.42, enabled: true, ready: false };
+export function loadDisplayFont() {
+  if (typeof document === 'undefined' || !document.fonts || !DISPLAY_FONT.enabled) return Promise.resolve(false);
+  return document.fonts.load(`32px "${DISPLAY_FONT.family}"`).then((f) => { DISPLAY_FONT.ready = f.length > 0; return DISPLAY_FONT.ready; }).catch(() => false);
+}
+
+function shade(hex, k) { // k > 0 lighten, k < 0 darken
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return hex;
+  const n = parseInt(m[1], 16), c = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  const f = (v) => Math.round(k > 0 ? v + (255 - v) * k : v * (1 + k));
+  return `rgb(${f(c[0])},${f(c[1])},${f(c[2])})`;
+}
+
+function drawDisplay(ctx, str, px, py, w, color, scale, shadow) {
+  const boxH = 7 * scale, size = Math.round(boxH * DISPLAY_FONT.sizeMul);
+  ctx.save();
+  ctx.font = `${size}px "${DISPLAY_FONT.family}"`;
+  ctx.textBaseline = 'alphabetic';
+  const mw = ctx.measureText(str).width || 1;
+  const sx = Math.min(1.15, w / mw);              // fit the pixel box width (never stretch much)
+  const ox = px + (w - mw * sx) / 2, base = py + boxH + Math.round(size * 0.04);
+  ctx.translate(ox, base); ctx.scale(sx, 1);
+  ctx.lineJoin = 'round';
+  if (shadow !== false) { ctx.fillStyle = shadow || '#000'; ctx.fillText(str, scale * 0.8 / sx, scale * 0.8); }
+  ctx.lineWidth = Math.max(2, scale * 1.1); ctx.strokeStyle = '#140302'; ctx.strokeText(str, 0, 0);
+  const gr = ctx.createLinearGradient(0, -size * 0.8, 0, 0);
+  gr.addColorStop(0, shade(color, 0.45)); gr.addColorStop(0.55, color); gr.addColorStop(1, shade(color, -0.45));
+  ctx.fillStyle = gr; ctx.fillText(str, 0, 0);
+  ctx.restore();
+}
+
+// align: 'left' | 'center' | 'right'. shadow: colour string or false. pixel: true forces pixel text.
 export function drawText(ctx, text, x, y, color = '#ddd', opts = {}) {
   const scale = opts.scale || 1;
   const str = String(text).toUpperCase();
@@ -62,6 +99,7 @@ export function drawText(ctx, text, x, y, color = '#ddd', opts = {}) {
   if (opts.align === 'center') px = Math.round(x - w / 2);
   else if (opts.align === 'right') px = Math.round(x - w);
   const py = Math.round(y);
+  if (DISPLAY_FONT.ready && !opts.pixel && scale >= DISPLAY_FONT.minScale && str.trim()) { drawDisplay(ctx, str, px, py, w, color, scale, opts.shadow); return w; }
   if (opts.shadow !== false) drawRaw(ctx, str, px + scale, py + scale, opts.shadow || '#000', scale);
   drawRaw(ctx, str, px, py, color, scale);
   return w;
