@@ -10,11 +10,19 @@ export const PORTRAIT_CROPS = {
   famine: { x: 440, y: 60, w: 460 },    // stone mask under the hood (tighter: readable at 44x52)
   death: { x: 225, y: 140, w: 400 },    // hooded skull + scythe shaft (tighter: readable at 44x52)
 };
+// v2 paintings (assets/portraits/src/<id>_v2.jpg, 1376x768, matched to the in-game hero art):
+//   import('/tools/make-portraits.js').then((m) => m.bakePortrait('war', '/assets/portraits/src/war_v2.jpg', m.PORTRAIT_CROPS_V2))
+export const PORTRAIT_CROPS_V2 = {
+  conquest: { x: 420, y: 30, w: 540 },  // crown, broken halo, white hair, gold collar
+  war: { x: 400, y: 0, w: 580 },        // horned helm with red eye slit, spiked pauldrons
+  famine: { x: 450, y: 10, w: 500 },    // hood, violet eyes, the scales held at the chest
+  death: { x: 440, y: 20, w: 520 },     // cowled skull with blue eyes, axe haft, ribs
+};
 export const OUT = { w: 352, h: 416 };
 
-export async function bakePortrait(id, src = `/assets/portraits/src/${id}.webp`) {
+export async function bakePortrait(id, src = `/assets/portraits/src/${id}.webp`, crops = PORTRAIT_CROPS) {
   const img = new Image(); img.src = src; await img.decode();
-  const c = PORTRAIT_CROPS[id], h = Math.round((c.w * OUT.h) / OUT.w);
+  const c = crops[id], h = Math.round((c.w * OUT.h) / OUT.w);
   const out = document.createElement('canvas'); out.width = OUT.w; out.height = OUT.h;
   const x = out.getContext('2d');
   x.imageSmoothingEnabled = true; x.imageSmoothingQuality = 'high';
