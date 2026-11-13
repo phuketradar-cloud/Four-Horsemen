@@ -35,6 +35,9 @@ export async function loadItemArt(sprites, base = ITEM_ART_BASE) {
       const img = await load(`${base}${k}.png`);
       const old = sprites.icons[k];
       sprites.icons[k] = fit(img, old?.width || 16, old?.height || 16, false);
+      // full-size copy for loot lying on the dungeon floor (drawn large in the 2x view)
+      sprites.iconsHi = sprites.iconsHi || {};
+      sprites.iconsHi[k] = fit(img, img.width, img.height, false);
       done.push(k);
     } catch { /* keep the pixel art */ }
   }));
@@ -42,7 +45,10 @@ export async function loadItemArt(sprites, base = ITEM_ART_BASE) {
     try {
       const img = await load(`${base}${file}.png`);
       const old = sprites[group]?.[key];
-      const c = fit(img, old?.width || 32, old?.height || 32, true);
+      // same shape as the old sprite canvas, but up to ~256px so chests / fonts stay sharp up close
+      // (the renderer sizes billboards by ratio, so a bigger canvas does not change the on-screen size)
+      const ow = old?.width || 32, oh = old?.height || 32, res = Math.max(1, Math.floor(img.height / Math.max(ow, oh)));
+      const c = fit(img, ow * res, oh * res, true);
       sprites[group][key] = c;
       if (used) sprites[group][used] = dimmed(c);
       done.push(file);

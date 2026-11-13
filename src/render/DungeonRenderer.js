@@ -17,6 +17,26 @@ const F = VIEW.focal;
 // floors, painted enemies and weapons keep their detail. All drawing below stays in W x H units.
 const RS = RENDER_SCALE;
 
+// Interactive things get a coloured rim (chests gold, usable fonts / shrines / tablets pale blue,
+// floor loot in its rarity colour) so they read against the painted walls and floor.
+export const OUTLINE = { chest: '#ffcf40', feature: '#9ad8ff', width: 0.03 };
+const pulse = (t) => 0.6 + Math.sin(t * 3.2) * 0.3;
+const outlineCache = new WeakMap();
+// silhouette of `img` grown by ~3% of its size, filled with `color` (cached per image + colour)
+function outlined(img, color) {
+  let m = outlineCache.get(img);
+  if (!m) { m = new Map(); outlineCache.set(img, m); }
+  let c = m.get(color);
+  if (c) return c;
+  const r = Math.max(2, Math.round(Math.max(img.width, img.height) * OUTLINE.width));
+  c = document.createElement('canvas'); c.width = img.width + r * 2; c.height = img.height + r * 2; c.pad = r;
+  const x = c.getContext('2d');
+  for (let a = 0; a < 16; a++) { const an = (a / 16) * Math.PI * 2; x.drawImage(img, r + Math.round(Math.cos(an) * r), r + Math.round(Math.sin(an) * r)); }
+  x.globalCompositeOperation = 'source-in'; x.fillStyle = color; x.fillRect(0, 0, c.width, c.height);
+  m.set(color, c);
+  return c;
+}
+
 const ease = (p) => 1 - Math.pow(1 - p, 3);
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -250,6 +270,12 @@ export class DungeonRenderer {
     const y = foot - hpx;
     const ctx = this.ctx;
     const dx = Math.round(x), dy = Math.round(y), dw = Math.round(w), dh = Math.round(hpx);
+    if (opts.outline) { // highlight rim so interactive things stand out from the scenery
+      const o = outlined(img, opts.outline), sx = dw / img.width, sy = dh / img.height;
+      ctx.globalAlpha = (opts.outlineAlpha ?? 0.85) * Math.max(0.35, 1 - z / 9);
+      ctx.drawImage(o, dx - o.pad * sx, dy - o.pad * sy, o.width * sx, o.height * sy);
+      ctx.globalAlpha = 1;
+    }
     if (opts.alpha !== undefined) ctx.globalAlpha = opts.alpha;
     ctx.drawImage(img, dx, dy, dw, dh);
     const lvl = shadeLevel(z);
@@ -360,7 +386,8 @@ export class DungeonRenderer {
     }[f.kind];
     if (!img) return;
     const h = { stairs: 0.42, exit: 0.95, tablet: 0.45, font: 0.36, shrine: 0.55, scroll: 0.42 }[f.kind] || 0.4;
-    this._billboard(img, f.x, f.y, h);
+    const live = !f.used && f.kind !== 'stairs' && !(f.kind === 'exit' && !game.run?.bossDefeated);
+    this._billboard(img, f.x, f.y, h, live ? { outline: OUTLINE.feature, outlineAlpha: pulse(game.realTime) } : {});
   }
 
   _drawCellSprites(list, game, t) {
@@ -371,7 +398,8 @@ export class DungeonRenderer {
     for (const s of list) {
       if (s.type === 'feature') this._drawFeature(s.f, game);
       else if (s.type === 'chest') {
-        this._billboard(s.c.opened ? this.spr.chest.open : this.spr.chest.closed, s.c.x, s.c.y, 0.32);
+        this._billboard(s.c.opened ? this.spr.chest.open : this.spr.chest.closed, s.c.x, s.c.y, 0.32,
+          s.c.opened ? {} : { outline: OUTLINE.chest, outlineAlpha: pulse(t) });
       } else if (s.type === 'item') {
         this._drawFloorItem(s.it, itemIdx++, t);
       } else if (s.type === 'enemy') {
@@ -428,8 +456,8 @@ export class DungeonRenderer {
     ctx.globalAlpha = (0.35 + rar.glow * 0.5) * (0.8 + Math.sin(t * 4 + it.uid) * 0.2) * Math.max(0.25, 1 - z / 8);
     ctx.drawImage(this._glow(rar.color), Math.round(sx - gw), Math.round(foot - gh), Math.round(gw * 2), Math.round(gh * 2));
     ctx.globalAlpha = 1;
-    const icon = this.spr.icons[it.item.def.icon] || this.spr.icons.shard;
-    this._billboard(icon, wx, wy, 0.16, { lift: 0.04 + bob });
+    const key = it.item.def.icon, icon = this.spr.iconsHi?.[key] || this.spr.icons[key] || this.spr.icons.shard;
+    this._billboard(icon, wx, wy, 0.16, { lift: 0.04 + bob, outline: rar.color, outlineAlpha: 0.55 + rar.glow * 0.4 });
     if (rar.glow > 0.3 && Math.floor(t * 6 + it.uid) % 5 === 0) {
       const sp = (0.15 * F) / z;
       ctx.fillStyle = '#fff';
