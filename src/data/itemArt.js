@@ -22,9 +22,12 @@ export const ITEM_ICON_ART = [
     'apocalyptic_fragment', 'mythic_essence', 'ancient_relic_dust'].map((m) => `mat_${m}`),
 ];
 
-// world objects: [file key, sprite group, sprite key, dimmed "used" twin]
+// world objects: [file key, sprite group, sprite key, dimmed "used" twin, optional canvas shape [w, h]]
+// (exit gate / portal / stairs come from assets/items/src/items_portal.jpg, prompt in docs/portal-prompts.md)
 export const ITEM_OBJECT_ART = [
   ['chestClosed', 'chest', 'closed'], ['chestOpen', 'chest', 'open'],
   ['font', 'features', 'font', 'fontUsed'], ['shrine', 'features', 'shrine', 'shrineUsed'],
   ['tablet', 'features', 'tablet'], ['scroll', 'features', 'scroll', 'scrollUsed'],
+  ['exitOff', 'features', 'exitOff'], ['exitOn', 'features', 'exitOn'],
+  ['stairs', 'features', 'stairs', null, [32, 52]], // painted as a standing archway: taller than the old floor hole
 ];
