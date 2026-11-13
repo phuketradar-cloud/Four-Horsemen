@@ -202,6 +202,12 @@ export async function runAcceptance(g, { classId = 'war', useSkills = false, sta
     weaponKey(3);
     let rangedDetail = 'no target lined up';
     let rangedHit = false;
+    // This check is about the projectile (travel, collision, damage at range), not the 60-100% hit roll:
+    // a random miss used to let the target walk into melee range and fail the check. Pin the roll to a
+    // hit for this part only, and say so in the detail if a miss is still logged.
+    const missesBefore = g.combat.feedback.miss;
+    const ownHitChance = Object.prototype.hasOwnProperty.call(g.combat, 'hitChance') ? g.combat.hitChance : null;
+    g.combat.hitChance = () => 1;
     for (let i = 0; i < 300 && !rangedHit && g.enemies.some((e) => e.alive && e.room === 'elite'); i++) {
       if (g.combat.active) { weaponKey(4); fight(); weaponKey(3); continue; }
       const p = g.player;
@@ -215,6 +221,8 @@ export async function runAcceptance(g, { classId = 'war', useSkills = false, sta
         rangedHit = target.hp < hp0;
       } else sim(0.1);
     }
+    if (ownHitChance) g.combat.hitChance = ownHitChance; else delete g.combat.hitChance;
+    if (g.combat.feedback.miss > missesBefore) rangedDetail += ` (${g.combat.feedback.miss - missesBefore} miss logged)`;
     check('Crossbow hits a distant target (projectile)', rangedHit, rangedDetail);
     weaponKey(4); // dagger: no stagger, so the knight's telegraphed wind-up plays out
     const daggerOk = g.weapons.current.def.id === 'dagger';
