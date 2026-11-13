@@ -64,9 +64,10 @@ export class Input {
       }
       if (action || e.code === 'Tab') e.preventDefault();
       this._gesture();
+      // every key is tracked as held (unbound shortcuts such as Y / Shift+Y / U read heldKeys)
+      this.heldKeys.add(e.code);
       if (!action) return;
       if (!e.repeat) this.pressed.push(action); // OS auto-repeat ignored; held logic handles repeats
-      this.heldKeys.add(e.code);
     });
     window.addEventListener('keyup', (e) => { this.heldKeys.delete(e.code); });
     window.addEventListener('blur', () => { this.heldKeys.clear(); this.mouse.down = false; this.mouse.rightDown = false; });

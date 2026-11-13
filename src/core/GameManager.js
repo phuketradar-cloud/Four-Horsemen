@@ -1073,8 +1073,10 @@ export class GameManager {
     // Unequip shortcut inside inventory
     if (this.panel === 'inventory' && input.heldKeys.has('KeyU') && !this._uHeld) { this._uHeld = true; actions.push('unequip'); }
     if (!input.heldKeys.has('KeyU')) this._uHeld = false;
-    // Auto-equip shortcut inside inventory: Y = controlled Horseman, Shift+Y = whole party
-    if (this.panel === 'inventory' && input.heldKeys.has('KeyY') && !this._yHeld) {
+    // Auto-equip shortcut: Y = controlled Horseman, Shift+Y = whole party. Works in the bag and
+    // character screens, at the camp and while exploring (not in menus, dialogue or the forge).
+    const yOk = this.panel === 'inventory' || this.panel === 'character' || (!this.panel && (this.scene === 'camp' || this.scene === 'playing'));
+    if (yOk && input.heldKeys.has('KeyY') && !this._yHeld) {
       this._yHeld = true;
       this.autoEquipBest(input.heldKeys.has('ShiftLeft') || input.heldKeys.has('ShiftRight'));
     }
