@@ -19,6 +19,8 @@ import { buildTextures } from '../render/Textures.js';
 import { buildSprites } from '../render/SpriteFactory.js';
 import { loadPortraitArt } from '../render/PortraitArt.js';
 import { loadNpcArt } from '../render/NpcArt.js';
+import { loadSkillArt } from '../render/SkillArt.js';
+import { loadDisplayFont } from '../render/PixelFont.js';
 import { loadEnemyArt } from '../render/EnemyArt.js';
 import { loadHeroArt } from '../render/HeroArt.js';
 import { loadSceneArt } from '../render/SceneArt.js';
@@ -93,6 +95,10 @@ export class GameManager {
     this.portraitsReady = loadPortraitArt(this.sprites).catch(() => []);
     // painted sanctuary NPC faces (assets/npcs/<id>.webp), same fallback rule
     this.npcArtReady = loadNpcArt(this.sprites).catch(() => []);
+    // painted skill / passive / UI icons (assets/skills/<key>.png)
+    this.skillArtReady = loadSkillArt(this.sprites).catch(() => []);
+    // headline font (render/PixelFont.js DISPLAY_FONT); pixel text until / unless it loads
+    this.fontReady = loadDisplayFont();
     // painted enemy art (data/enemyArt.js) replaces drawn sprite sets the same way
     this.enemyArtReady = loadEnemyArt(this.sprites).catch(() => []);
     // painted Horseman back views (data/heroArt.js)
@@ -512,7 +518,7 @@ export class GameManager {
   toTitle() { this.scene = 'title'; this.panel = null; this.menuIndex = 0; this.input.clearAll(); }
 
   openSelect() {
-    this.scene = 'select'; this.sceneT = 0; this.panel = null; this.menuIndex = 0;
+    this.scene = 'select'; this.sceneT = 0; this.panel = null; this.menuIndex = 0; this.selectConfirm = false;
     this.selectIndex = Math.max(0, CLASS_ORDER.indexOf(this.classId));
     this.input.clearAll();
   }
@@ -523,7 +529,7 @@ export class GameManager {
     this.audio.unlock();
     this.audio.play('select' + id[0].toUpperCase() + id.slice(1));
   }
-  confirmSelect() { this.newGame(CLASS_ORDER[this.selectIndex]); }
+  confirmSelect() { this.selectConfirm = false; this.newGame(CLASS_ORDER[this.selectIndex]); }
 
   // ------------------------------------------------------------------ skills & targeting
   useSkill(slot) {
@@ -1084,10 +1090,15 @@ export class GameManager {
     }
     if (this.scene === 'select') {
       for (const a of actions) {
-        if (a === 'turnLeft') this.chooseCard(this.selectIndex - 1);
-        else if (a === 'turnRight') this.chooseCard(this.selectIndex + 1);
+        if (this.selectConfirm) { // "RIDE AS ...?" confirmation is open
+          if (a === 'confirm' || a === 'attack') { this.selectConfirm = false; this.confirmSelect(); return; }
+          if (a === 'pause') { this.selectConfirm = false; return; }
+          continue;
+        }
+        if (a === 'turnLeft' || a === 'strafeLeft') this.chooseCard(this.selectIndex - 1);
+        else if (a === 'turnRight' || a === 'strafeRight') this.chooseCard(this.selectIndex + 1);
         else if (a === 'pause') { this.toTitle(); return; }
-        else if (a === 'confirm' || a === 'attack') { if (this.menuIndex === 1) this.toTitle(); else this.confirmSelect(); return; }
+        else if (a === 'confirm' || a === 'attack') { if (this.menuIndex === 1) this.toTitle(); else this.selectConfirm = true; return; }
         else if (a === 'forward' || a === 'back' || a === 'menuUp' || a === 'menuDown') this.menuIndex = this.menuIndex ? 0 : 1;
       }
       this.effects.update(dt);
@@ -1249,7 +1260,7 @@ export class GameManager {
     }
     if (this.scene === 'select') {
       ctx.fillStyle = '#050302'; ctx.fillRect(0, 0, SCREEN.w, SCREEN.h);
-      this._classic(ctx, () => drawCharacterSelect(ctx, this, t));
+      drawCharacterSelect(ctx, this, t); // full 16:9 layout (no CLASSIC offset)
       return;
     }
     if (this.scene === 'camp') {
