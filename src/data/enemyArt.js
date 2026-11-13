@@ -11,5 +11,15 @@ export const ENEMY_ART = {
   skeleton: { poses: ['idle', 'windup', 'attack', 'hurt'] }, // Hollow Skeleton (+ summoned skeletons)
   abyssbeast: { poses: ['idle', 'windup', 'attack', 'hurt'], size: 1.5 },
   captain: { poses: ['idle', 'windup', 'attack', 'hurt'] }, // Fallen Knight Captain (crypt boss variant) // Abyssal Beast (The Abyssal Gate)
-  abaddon: { poses: ['idle', 'windup', 'attack'] }, // Abaddon, the Destroyer (final boss) - no hurt painting: hurt uses idle
+  abaddon: { poses: ['idle', 'windup', 'attack'] },
+  knight: { poses: ['idle', 'windup', 'attack', 'hurt'] }, // Fallen Knight (Ashen Catacombs elite) - made in Google Flow
+  // baked from one 2x2 pose sheet each (assets/enemies/src/<key>_sheet.jpg, tools/make-enemy-art.js bakeSheet)
+  ...Object.fromEntries([
+    'gravekeeper', 'cerberus',                                    // minibosses
+    'tyrant',                                                     // Red Warfront
+    'thrall', 'stalker', 'harvester', 'harvesterBoss',            // Black Harvest
+    'revenant', 'soulbound', 'lich', 'sentinel', 'executor',      // Pale Threshold
+    'gorgon', 'nephilim', 'chimera', 'locust', 'beast',           // Abyssal Gate
+    'seraph', 'prophet', 'dragon',                                // Last Revelation
+  ].map((k) => [k, { poses: ['idle', 'windup', 'attack', 'hurt'] }])), // Abaddon, the Destroyer (final boss) - no hurt painting: hurt uses idle
 };
