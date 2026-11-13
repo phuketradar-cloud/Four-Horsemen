@@ -6,12 +6,14 @@
 //    (only light, colourless pixels connected to the edge)
 // 2. one crop rectangle for ALL poses (union of the figures, centred on the idle body) so the body
 //    keeps its size and the feet stay on the same baseline in every frame
-// 3. high-quality downscale (halving steps) so the idle body is BODY_H pixels tall
+// 3. high-quality downscale (halving steps) so the idle body is BAKE.bodyH pixels tall
 // Returns { pose: dataURL(png) } for assets/enemies/<id>/<pose>.png.
 import { isGreenScreen, keyGreen } from '../src/render/ChromaKey.js';
 
 export const ALL_POSES = ['idle', 'windup', 'attack', 'hurt'];
-const BODY_H = 128;
+// idle body height of the baked frames. 256 since the 2x frame (RENDER_SCALE 2); bake at 128 to compare
+// with older files. The game sizes sprites by ratios, so any height works.
+export const BAKE = { bodyH: 256 };
 
 const load = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 
@@ -101,10 +103,10 @@ function bakeSeparate(cut, boxes) {
   const k = {}, size = {};
   for (const p of POSES) {
     const b = boxes[p], h = b.y1 - b.y0 + 1, w = b.x1 - b.x0 + 1;
-    k[p] = BODY_H / h;
-    size[p] = [Math.round(w * k[p]), BODY_H];
+    k[p] = BAKE.bodyH / h;
+    size[p] = [Math.round(w * k[p]), BAKE.bodyH];
   }
-  const W = Math.max(...POSES.map((p) => size[p][0])) + 2, H = BODY_H;
+  const W = Math.max(...POSES.map((p) => size[p][0])) + 2, H = BAKE.bodyH;
   const out = {};
   for (const p of POSES) {
     const b = boxes[p];
@@ -113,7 +115,7 @@ function bakeSeparate(cut, boxes) {
     c.getContext('2d').drawImage(fr, Math.round((W - fr.width) / 2), H - fr.height);
     out[p] = c.toDataURL('image/png');
   }
-  return { frames: out, size: [W, H], bodyH: BODY_H, bodyTop: 0, mode: 'separate' };
+  return { frames: out, size: [W, H], bodyH: BAKE.bodyH, bodyTop: 0, mode: 'separate' };
 }
 
 // Ground effects painted to the image edge (mist, smoke) would end in a hard rectangle: in the lowest
@@ -198,13 +200,13 @@ export function splitSheet(c) {
 }
 
 // Bake a 2x2 pose sheet (assets/enemies/src/<id>_sheet.(webp|png|jpg)): every pose is scaled by the
-// same factor (idle body = BODY_H tall), stood on one baseline and centred, so a crouching attack
+// same factor (idle body = BAKE.bodyH tall), stood on one baseline and centred, so a crouching attack
 // stays lower than the standing idle instead of being stretched to the same height.
 export async function bakeSheet(id, base = '/assets/enemies/src/') {
   const cut = cutBackground(await loadSource(base, id, 'sheet'));
   const { poses, shapes, cut: midCut, dividers } = splitSheet(cut);
   const boxes = Object.fromEntries(Object.entries(poses).map(([p, c]) => [p, bbox(c)]));
-  const k = BODY_H / (boxes.idle.y1 - boxes.idle.y0 + 1);
+  const k = BAKE.bodyH / (boxes.idle.y1 - boxes.idle.y0 + 1);
   const size = Object.fromEntries(Object.entries(boxes).map(([p, b]) => [p, [Math.max(1, Math.round((b.x1 - b.x0 + 1) * k)), Math.max(1, Math.round((b.y1 - b.y0 + 1) * k))]]));
   const W = Math.max(...Object.values(size).map((s) => s[0])) + 2, H = Math.max(...Object.values(size).map((s) => s[1]));
   const frames = {};
@@ -240,11 +242,11 @@ export async function bakeEnemy(id, base = '/assets/enemies/src/', poses = ALL_P
   const cx = (body.x0 + body.x1) / 2;
   const top = Math.min(...POSES.map((p) => boxes[p].y0)), bottom = Math.max(...POSES.map((p) => boxes[p].y1));
   const half = Math.max(...POSES.map((p) => Math.max(cx - boxes[p].x0, boxes[p].x1 - cx))) + 2;
-  const k = BODY_H / (body.y1 - body.y0 + 1);
+  const k = BAKE.bodyH / (body.y1 - body.y0 + 1);
   const rect = { x: Math.round(cx - half), y: top, w: Math.round(half * 2), h: bottom - top + 1 };
   const W = Math.round(rect.w * k), H = Math.round(rect.h * k);
   const out = {};
   const ditherFromY = opts.ground ? Math.round((cut.idle.height * (1 - opts.ground) - rect.y) * k) : Infinity;
   for (const p of POSES) out[p] = downscale(cut[p], rect.x, rect.y, rect.w, rect.h, W, H, ditherFromY).toDataURL('image/png');
-  return { frames: out, size: [W, H], bodyH: BODY_H, bodyTop: Math.round((body.y0 - top) * k) };
+  return { frames: out, size: [W, H], bodyH: BAKE.bodyH, bodyTop: Math.round((body.y0 - top) * k) };
 }
