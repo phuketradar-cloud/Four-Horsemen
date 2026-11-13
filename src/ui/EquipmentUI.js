@@ -12,6 +12,13 @@ import { drawItemTooltip, drawItemSlot } from './ItemTooltip.js';
 export function drawEquipment(ctx, g) {
   const th = g.theme, ui = g.ui, h = g.hero, s = h.stats;
   const M = modalFrame(ctx, g, 'CHARACTER & EQUIPMENT');
+  // auto-equip: best gear for the controlled Horseman (Y); whole party (SHIFT+Y)
+  const ab = ui.textButton(ctx, M.x + M.w - 134, M.y + 5, 104, 13, 'AUTO EQUIP [Y]', th, () => g.autoEquipBest(false), { selected: true });
+  if (ab) ui.tooltip = { text: 'WEAR THE BEST GEAR IN YOUR BAG NOW', x: M.x + M.w - 82, y: M.y + 22 };
+  if (g.party?.enabled) {
+    const pb = ui.textButton(ctx, M.x + M.w - 236, M.y + 5, 96, 13, 'PARTY [SHIFT+Y]', th, () => g.autoEquipBest(true));
+    if (pb) ui.tooltip = { text: 'BEST GEAR FOR EVERY HORSEMAN, NO ITEM SHARED', x: M.x + M.w - 188, y: M.y + 22 };
+  }
   let hoverDoc = null;
 
   // ---------------------------------------------------------------- left: portrait + progression + attributes
@@ -123,5 +130,5 @@ export function drawEquipment(ctx, g) {
   // footer: formula of hovered stat / hints
   const fy = M.y + M.h - 12;
   if (hoverDoc) drawText(ctx, hoverDoc.slice(0, 102), M.x + 8, fy, '#ffe58a');
-  else drawText(ctx, 'CLICK A SLOT, THEN AN ITEM TO EQUIP.  GREEN = REAL IMPROVEMENT, RED = LOSS.  I/ESC: CLOSE  TAB: INVENTORY', M.x + 8, fy, th.textDim);
+  else drawText(ctx, 'CLICK A SLOT, THEN AN ITEM.  GREEN = BETTER, RED = LOSS.  Y: AUTO EQUIP  I/ESC: CLOSE  TAB: INVENTORY', M.x + 8, fy, th.textDim);
 }

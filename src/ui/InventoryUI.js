@@ -61,7 +61,7 @@ export function drawInventory(ctx, g) {
   drawText(ctx, 'SORT', M.x + 8, M.y + 26, th.textDim);
   SORTS.forEach((s, i) => ui.textButton(ctx, M.x + 36 + i * 42, M.y + 23, 40, 12, s.toUpperCase(), th, () => { st.sort = s; }, { selected: st.sort === s }));
   // auto-equip the best gear (Y / Shift+Y)
-  ui.textButton(ctx, M.x + 256, M.y + 23, 74, 12, 'AUTO EQUIP', th, () => g.autoEquipBest(false));
+  ui.textButton(ctx, M.x + 256, M.y + 23, 74, 12, 'AUTO EQUIP', th, () => g.autoEquipBest(false), { selected: true });
   if (g.party?.enabled) ui.textButton(ctx, M.x + 334, M.y + 23, 74, 12, 'AUTO: PARTY', th, () => g.autoEquipBest(true));
   ui.textButton(ctx, M.x + 330, M.y + 6, 110, 12, `SLOT: ${st.slot === 'all' ? 'ALL' : st.slot === 'material' ? 'MATERIALS' : SLOT_DEFS[st.slot].short}`, th,
     () => { st.slot = SLOT_FILTERS[(SLOT_FILTERS.indexOf(st.slot) + 1) % SLOT_FILTERS.length]; });

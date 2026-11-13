@@ -17,6 +17,17 @@ const LIST = { x: 12, y: 44, w: 220, h: 46, step: 49 };
 const NPC_COL = { x: -122, y: 4, w: NPC_FACE.w, h: NPC_FACE.h, step: 96 };
 const DET = { x: 244, y: 44, w: 384, h: 330 };
 
+// Painted camp backdrop: first file found of CAMP_BG.files; dim = black overlay so panels stay readable.
+export const CAMP_BG = { files: ['assets/camp/sanctuary.jpg', 'assets/camp/sanctuary.webp', 'assets/camp/sanctuary.png'], dim: 0.5, img: null, tried: false };
+function campBackground() {
+  if (!CAMP_BG.tried && typeof Image !== 'undefined') {
+    CAMP_BG.tried = true;
+    const tryAt = (i) => { if (i >= CAMP_BG.files.length) return; const im = new Image(); im.onload = () => { CAMP_BG.img = im; }; im.onerror = () => tryAt(i + 1); im.src = CAMP_BG.files[i]; };
+    tryAt(0);
+  }
+  return CAMP_BG.img;
+}
+
 function materialsOf(def) {
   const ids = new Set();
   for (const key of ['enemies']) for (const e of Object.values(def[key] || {})) for (const en of LOOT_TABLES[e.loot]?.entries || []) if (en.type === 'item' && ITEM_DEFS[en.item]?.kind === 'material') ids.add(en.item);
@@ -26,9 +37,18 @@ function materialsOf(def) {
 
 export function drawCamp(ctx, g, t) {
   const th = g.theme, ui = g.ui, p = g.progress;
-  // backdrop
-  ctx.fillStyle = '#0a0806'; ctx.fillRect(...FULL);
-  for (let i = 0; i < 40; i++) { ctx.fillStyle = i % 3 ? '#141008' : '#1a140c'; ctx.fillRect(FULL[0], 380 + i * 3, FULL[2], 3); }
+  // backdrop: painted sanctuary (assets/camp/sanctuary.*) dimmed under the UI, else the plain floor
+  const bg = campBackground();
+  if (bg) {
+    const [fx0, fy0, fw, fh] = FULL, sc = Math.max(fw / bg.width, fh / bg.height);
+    ctx.save(); ctx.imageSmoothingEnabled = true;
+    ctx.drawImage(bg, fx0 + (fw - bg.width * sc) / 2, fy0 + (fh - bg.height * sc) / 2, bg.width * sc, bg.height * sc);
+    ctx.restore();
+    ctx.globalAlpha = CAMP_BG.dim; ctx.fillStyle = '#050302'; ctx.fillRect(...FULL); ctx.globalAlpha = 1;
+  } else {
+    ctx.fillStyle = '#0a0806'; ctx.fillRect(...FULL);
+    for (let i = 0; i < 40; i++) { ctx.fillStyle = i % 3 ? '#141008' : '#1a140c'; ctx.fillRect(FULL[0], 380 + i * 3, FULL[2], 3); }
+  }
   // campfire
   const fx = 40, fy = 30;
   for (let i = 0; i < 6; i++) { const h = 10 + Math.sin(t * 9 + i) * 4 + (i % 3) * 3; ctx.fillStyle = ['#ff6a20', '#ffb030', '#ffe080'][i % 3]; ctx.fillRect(fx - 9 + i * 3, fy - h, 3, h); }
@@ -142,12 +162,13 @@ function drawFooter(ctx, g) {
   const btns = [
     ['BAG', () => g.togglePanel('inventory'), 'INVENTORY [TAB]'], ['GEAR', () => g.togglePanel('character'), 'CHARACTER [I]'],
     ['FORGE', () => g.togglePanel('crafting'), 'CRAFT AT THE FORGE [C]'], ['SKILLS', () => g.togglePanel('skills'), 'SKILLS [K]'],
+    ['AUTO EQUIP', () => g.autoEquipBest(!!g.party?.enabled), g.party?.enabled ? 'BEST GEAR FOR THE WHOLE PARTY [SHIFT+Y]' : 'WEAR THE BEST GEAR IN YOUR BAG [Y]'],
     [`STASH ${g.stash.length}`, () => g.takeStash(), 'TAKE OVERFLOW ITEMS FROM THE STASH'], ['JOURNAL', () => g.togglePanel('journal'), 'QUESTS, CODEX, BESTIARY [J]'], ['SAVE', () => g.saveGame(), 'SAVE'], ['MENU', () => g.openPanel('pause'), 'PAUSE MENU [ESC]'],
   ];
   btns.forEach(([label, fn, tip], i) => {
-    const x = 252 + (i % 4) * 92, yy = y + 48 + Math.floor(i / 4) * 18;
-    const hov = ui.textButton(ctx, x, yy, 86, 15, label, th, fn, { disabled: label.startsWith('STASH') && !g.stash.length });
-    if (hov) ui.tooltip = { text: tip, x: x + 43, y: yy - 6 };
+    const x = 252 + (i % 5) * 74, yy = y + 48 + Math.floor(i / 5) * 18;
+    const hov = ui.textButton(ctx, x, yy, 70, 15, label, th, fn, { disabled: label.startsWith('STASH') && !g.stash.length, selected: label === 'AUTO EQUIP' });
+    if (hov) ui.tooltip = { text: tip, x: x + 35, y: yy - 6 };
   });
   drawText(ctx, 'UP/DOWN: SELECT  ENTER x2: ENTER  TAB/I/C/K/J: PANELS', 12, 466, th.textDim);
 }
