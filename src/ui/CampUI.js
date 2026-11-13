@@ -125,7 +125,7 @@ export function drawCamp(ctx, g, t) {
     drawText(ctx, 'MATERIALS:', DET.x + 12, y + 4, th.textDim);
     mats.slice(0, 12).forEach((m, i) => {
       const x = DET.x + 82 + i * 22;
-      ctx.drawImage(g.sprites.icons[ITEM_DEFS[m].icon], x, y);
+      ctx.drawImage(g.sprites.icons[ITEM_DEFS[m].icon], x, y, 16, 16);
       if (ui.hover(x, y, 16, 16)) ui.tooltip = { text: `${ITEM_DEFS[m].name} (have ${g.inventory.countOf(m)})`, x: x + 8, y: y + 20 };
     });
     y += 22;
@@ -155,7 +155,7 @@ function drawFooter(ctx, g) {
   const y = 386;
   ui.frame(ctx, 244, y, 384, 88, th, { border: 3, panel: '#0e0c08' });
   const P2 = g.sprites.portraits;
-  ctx.drawImage(P2[g.hero.def.portrait], 252, y + 8);
+  ctx.drawImage(P2[g.hero.def.portrait], 252, y + 8, 44, 52);
   drawText(ctx, `${g.hero.def.name}  LV ${g.hero.level}`, 304, y + 10, th.highlight);
   drawText(ctx, `HP ${Math.ceil(g.hero.hp)}/${g.hero.maxHp}   GOLD ${g.gold}`, 304, y + 21, th.text);
   drawText(ctx, `XP ${g.hero.xp}/${g.hero.xpNeeded}   SKILL POINTS ${g.hero.skillPoints}`, 304, y + 32, th.textDim);

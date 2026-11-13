@@ -54,7 +54,7 @@ export function drawInventory(ctx, g) {
   const th = g.theme, ui = g.ui, inv = g.inventory, st = g.invState;
   modalFrame(ctx, g, 'INVENTORY');
   drawText(ctx, `BAG ${inv.bagCount}/${inv.capacity}`, M.x + 120, M.y + 8, inv.bagFree <= 3 ? '#ff7a60' : th.text);
-  ctx.drawImage(g.sprites.icons.gold, M.x + 200, M.y + 4);
+  ctx.drawImage(g.sprites.icons.gold, M.x + 200, M.y + 4, 16, 16);
   drawText(ctx, `${g.gold} GOLD`, M.x + 218, M.y + 8, '#e0c060');
 
   // toolbar: sort + filters
@@ -99,7 +99,7 @@ export function drawInventory(ctx, g) {
     const hov = ui.button(x, y, 28, 24, () => { st.matSel = m.id; st.sel = null; });
     ctx.fillStyle = st.matSel === m.id ? '#3a2c10' : hov ? '#1e170c' : '#100e09'; ctx.fillRect(x, y, 28, 24);
     ctx.fillStyle = inv.materials.tierColor(m.id); ctx.fillRect(x, y + 23, 28, 1);
-    ctx.drawImage(g.sprites.icons[m.def.icon] || g.sprites.icons.shard, x + 6, y + 1);
+    ctx.drawImage(g.sprites.icons[m.def.icon] || g.sprites.icons.shard, x + 6, y + 1, 16, 16);
     drawText(ctx, String(m.qty), x + 27, y + 16, th.text, { align: 'right' });
     if (hov) ui.tooltip = { text: `${m.def.name} x${m.qty} (${(m.def.tier || '').toUpperCase()})`, x: x + 14, y: y - 4 };
   });
@@ -134,7 +134,7 @@ export function drawInventory(ctx, g) {
 export function drawMaterialDetail(ctx, g, id, x, y, w) {
   const th = g.theme, d = ITEM_DEFS[id], inv = g.inventory;
   g.ui.box(ctx, x, y, w, 380, th, '#0c0a07');
-  ctx.drawImage(g.sprites.icons[d.icon], x + 8, y + 8);
+  ctx.drawImage(g.sprites.icons[d.icon], x + 8, y + 8, 16, 16);
   drawText(ctx, d.name.toUpperCase(), x + 30, y + 8, inv.materials.tierColor(id));
   drawText(ctx, `${(d.tier || 'basic').toUpperCase()} MATERIAL   ${inv.countOf(id)} / ${d.stack} CARRIED`, x + 30, y + 19, th.textDim);
   let yy = y + 36;

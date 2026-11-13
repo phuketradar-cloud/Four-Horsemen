@@ -139,7 +139,7 @@ function drawPartySlot(ctx, g, charId, x, y, w, h, index, t, member = null) {
   ctx.fillStyle = '#000'; ctx.fillRect(x + 4, y + 4, 46, 54);
   const P = g.sprites.portraits;
   const img = !def ? P.empty : isHero ? P[def.portrait] : P[charId + 'Sealed'];
-  ctx.drawImage(img, x + 5, y + 5);
+  ctx.drawImage(img, x + 5, y + 5, 44, 52); // portraits are baked at 2x
   if (isHero) {
     const hero = g.hero;
     const fb = hero.feedback;
@@ -188,7 +188,7 @@ function drawPartySlot(ctx, g, charId, x, y, w, h, index, t, member = null) {
       drawText(ctx, String(s + 1), bx + 2, by + 4, active ? '#1a1206' : th.textDim, { shadow: false });
       if (uid) {
         const item = g.inventory.get(uid);
-        ctx.drawImage(g.sprites.icons[WEAPON_ICON[s]], bx + 9, by - 1);
+        ctx.drawImage(g.sprites.icons[WEAPON_ICON[s]], bx + 9, by - 1, 16, 16);
         if (item && item.rarity !== 'common') { ctx.fillStyle = RARITIES[item.rarity].color; ctx.fillRect(bx + 1, by + 12, 22, 1); }
       }
     }

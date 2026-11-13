@@ -17,8 +17,8 @@ function costRows(g, mats, gold) {
 function drawCostRows(ctx, g, rows, x, y) {
   for (const r of rows) {
     const ok = r.have >= r.need;
-    if (r.id !== 'gold') ctx.drawImage(g.sprites.icons[ITEM_DEFS[r.id].icon], x, y - 4);
-    else ctx.drawImage(g.sprites.icons.gold, x, y - 4);
+    if (r.id !== 'gold') ctx.drawImage(g.sprites.icons[ITEM_DEFS[r.id].icon], x, y - 4, 16, 16);
+    else ctx.drawImage(g.sprites.icons.gold, x, y - 4, 16, 16);
     drawText(ctx, `${r.label.toUpperCase()}`, x + 20, y, g.theme.text);
     drawText(ctx, `${r.have}/${r.need}`, x + 230, y, ok ? '#60c060' : '#ff6050', { align: 'right' });
     y += 17;
@@ -57,7 +57,7 @@ function drawRecipes(ctx, g, M) {
     const hov = ui.button(M.x + 8, y, 230, 27, () => { cs.recipe = r.id; });
     ui.box(ctx, M.x + 8, y, 230, 27, th, cs.recipe === r.id ? '#2e2410' : hov ? '#1a150c' : '#0e0c08');
     const out = r.out.item ? ITEM_DEFS[r.out.item] : null;
-    ctx.drawImage(g.sprites.icons[out?.icon || (r.out.relic ? 'shardRelic' : 'helm')], M.x + 13, y + 6);
+    ctx.drawImage(g.sprites.icons[out?.icon || (r.out.relic ? 'shardRelic' : 'helm')], M.x + 13, y + 6, 16, 16);
     drawText(ctx, unlocked ? r.name : `${r.name}`, M.x + 34, y + 5, !unlocked ? '#5a5244' : chk.ok ? '#7ac060' : th.text);
     drawText(ctx, !unlocked ? 'LOCKED' : chk.ok ? 'READY TO CRAFT' : `LV ${r.level || 1}${r.station === 'forge' ? '  FORGE' : ''}`, M.x + 34, y + 16, !unlocked ? '#8a4030' : chk.ok ? '#60c060' : th.textDim);
   });

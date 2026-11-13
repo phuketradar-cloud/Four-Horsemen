@@ -24,7 +24,7 @@ export function drawEquipment(ctx, g) {
   // ---------------------------------------------------------------- left: portrait + progression + attributes
   const lx = M.x + 8;
   ctx.fillStyle = '#000'; ctx.fillRect(lx - 1, M.y + 21, 46, 54);
-  ctx.drawImage(g.sprites.portraits[h.def.portrait], lx, M.y + 22);
+  ctx.drawImage(g.sprites.portraits[h.def.portrait], lx, M.y + 22, 44, 52);
   drawText(ctx, `${h.def.name}`, lx + 50, M.y + 24, h.def.colors.accent);
   drawText(ctx, h.def.title.replace('THE ', ''), lx + 50, M.y + 34, th.textDim);
   drawText(ctx, `LEVEL ${h.level}`, lx + 50, M.y + 46, '#ffd040');

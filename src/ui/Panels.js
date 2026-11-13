@@ -34,7 +34,7 @@ export function drawFormation(ctx, g) {
     g.ui.box(ctx, colX, y, 144, 76, th, sel ? '#3a2c10' : hov ? '#1e170c' : '#100e09');
     const P2 = g.sprites.portraits;
     const lead = id && id === g.hero.classId;
-    ctx.drawImage(!def ? P2.empty : lead ? P2[def.portrait] : P2[id + 'Sealed'], colX + 6, y + 12);
+    ctx.drawImage(!def ? P2.empty : lead ? P2[def.portrait] : P2[id + 'Sealed'], colX + 6, y + 12, 44, 52);
     drawText(ctx, `SLOT ${i + 1} ${i < 3 ? 'LEFT' : 'RIGHT'}`, colX + 6, y + 3, th.textDim);
     drawText(ctx, def ? def.name : 'EMPTY', colX + 56, y + 16, sel || lead ? th.highlight : th.text);
     drawText(ctx, def ? def.title.replace('THE ', '') : '', colX + 56, y + 27, th.textDim);
