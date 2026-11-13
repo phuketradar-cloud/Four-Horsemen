@@ -10,10 +10,10 @@
 export const WEAPON_ART_BASE = 'assets/weapons/';
 
 export const WEAPON_ART = {
-  sword: { file: 'fp_sword.jpg', pivot: [0.49, 0.77], reach: 190, lift: 60 },
-  axe: { file: 'fp_axe.jpg', pivot: [0.48, 0.76], reach: 190, lift: 60 },
-  dagger: { file: 'fp_dagger.jpg', pivot: [0.5, 0.77], reach: 130, lift: 55 },
-  crossbow: { file: 'fp_crossbow.jpg', width: 230 },
-  crossbowEmpty: { file: 'fp_crossbow_empty.jpg', width: 230 },
+  sword: { file: 'fp_sword.jpg', pivot: [0.49, 0.77], reach: 260, lift: 80 },
+  axe: { file: 'fp_axe.jpg', pivot: [0.48, 0.76], reach: 260, lift: 80 },
+  dagger: { file: 'fp_dagger.jpg', pivot: [0.5, 0.77], reach: 180, lift: 75 },
+  crossbow: { file: 'fp_crossbow.jpg', width: 320 },
+  crossbowEmpty: { file: 'fp_crossbow_empty.jpg', width: 320 },
   // fists: { file: 'fp_fists.jpg', pivot: [0.5, 0.75], reach: 60 },
 };

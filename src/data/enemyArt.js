@@ -16,7 +16,8 @@ export const ENEMY_ART = {
   // baked from one 2x2 pose sheet each (assets/enemies/src/<key>_sheet.jpg, tools/make-enemy-art.js bakeSheet)
   ...Object.fromEntries([
     'gravekeeper', 'cerberus',                                    // minibosses
-    'tyrant',                                                     // Red Warfront
+    'crawler', 'warden',                                          // Ashen Catacombs
+    'legionnaire', 'hound', 'executioner', 'cultist', 'tyrant',   // Red Warfront
     'thrall', 'stalker', 'harvester', 'harvesterBoss',            // Black Harvest
     'revenant', 'soulbound', 'lich', 'sentinel', 'executor',      // Pale Threshold
     'gorgon', 'nephilim', 'chimera', 'locust', 'beast',           // Abyssal Gate
