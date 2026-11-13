@@ -1,6 +1,6 @@
 import { BOSSES } from '../data/bosses.js';
 import { DIFFICULTIES } from '../data/difficulty.js';
-import { DIRS } from '../data/config.js';
+import { DIRS, SCREEN } from '../data/config.js';
 import { chance } from '../core/rng.js';
 import { drawText } from '../render/PixelFont.js';
 
@@ -48,7 +48,7 @@ export class BossEncounterController {
     // (the boss's first attack is already delayed 1.2s+ above), so nothing is unskippable.
     const title = d.title || '';
     g.effects.overlay(2.4, (ctx, k) => {
-      const W = ctx.canvas.width, H = ctx.canvas.height, bar = Math.round(22 * Math.min(1, k * 6, (1 - k) * 5));
+      const W = SCREEN.w, H = SCREEN.h, bar = Math.round(22 * Math.min(1, k * 6, (1 - k) * 5));
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bar); ctx.fillRect(0, H - bar, W, bar);
       if (bar > 12 && title) drawText(ctx, title.slice(0, 60), W / 2, H - bar + 7, '#c8a070', { align: 'center' });
     });
