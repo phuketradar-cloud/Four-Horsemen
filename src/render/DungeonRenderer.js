@@ -581,7 +581,9 @@ export class DungeonRenderer {
       const pivX = img.pivX ?? img.width / 2, pivY = img.pivY ?? img.height * 0.82; // painted: the gripping fist
       const baseX = CX + 106 + ox, baseY = H + 14 + bob + oy - (img.lift || 0); // right hand, anchored to the view centre
       ctx.translate(Math.round(baseX), Math.round(baseY));
-      ctx.rotate(ang + jolt * 0.35);
+      // painted art carries a whole forearm: turn the wrist less so the arm stays low (the swing reads
+      // through the sideways move and the trail instead)
+      ctx.rotate((img.painted ? ang * 0.55 : ang) + jolt * 0.35);
       ctx.drawImage(img, Math.round(-pivX * s * sc), Math.round(-pivY * s * sc), Math.round(img.width * s * sc), Math.round(img.height * s * sc));
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       // slash trail
