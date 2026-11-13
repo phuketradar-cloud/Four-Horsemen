@@ -49,7 +49,9 @@ export class Display {
     this.canvas.style.width = `${w / dpr}px`;
     this.canvas.style.height = `${h / dpr}px`;
     if (mode === 'sharp') {
-      const m = Math.max(1, Math.ceil(k));
+      // intermediate size: a whole multiple of the source's own scale (source may be 1x or 2x SCREEN)
+      const rs = Math.max(1, Math.round(this.source.width / SCREEN.w));
+      const m = Math.max(rs, rs * Math.ceil(k / rs));
       if (!this.mid || this.mid.width !== SCREEN.w * m) { this.mid = document.createElement('canvas'); this.mid.width = SCREEN.w * m; this.mid.height = SCREEN.h * m; }
     } else this.mid = null;
     this.out = { w, h, k, mode };

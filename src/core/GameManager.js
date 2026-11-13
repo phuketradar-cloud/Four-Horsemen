@@ -3,7 +3,7 @@ import { Input } from './Input.js';
 import { Display } from './Display.js';
 import { PartySystem } from '../systems/PartySystem.js';
 import { chance } from './rng.js';
-import { LAYOUT, TUNING, DIRS, SCREEN, CLASSIC } from '../data/config.js';
+import { LAYOUT, TUNING, DIRS, SCREEN, CLASSIC, RENDER_SCALE } from '../data/config.js';
 import { DUNGEON_1 } from '../data/dungeon.js';
 import { HORSEMEN, CLASS_ORDER, buildFormation } from '../data/characters.js';
 import { PROGRESSION, scaledXp } from '../data/progression.js';
@@ -81,7 +81,7 @@ export class GameManager {
     this.saves = new SaveSystem();
     this.settings = this.saves.loadSettings();
     this.screen = document.createElement('canvas');
-    this.screen.width = SCREEN.w; this.screen.height = SCREEN.h;
+    this.screen.width = SCREEN.w * RENDER_SCALE; this.screen.height = SCREEN.h * RENDER_SCALE; // drawn in SCREEN units
     this.ctx = this.screen.getContext('2d');
     this.ctx.imageSmoothingEnabled = false;
     this.display = new Display(canvas, this.screen, this.settings);
@@ -1244,6 +1244,7 @@ export class GameManager {
   _renderFrame() {
     const ctx = this.ctx;
     const t = this.realTime;
+    ctx.setTransform(RENDER_SCALE, 0, 0, RENDER_SCALE, 0, 0); // everything below draws in 960x540 units
     ctx.imageSmoothingEnabled = false;
     this.titleScreen?.sync();
     if (this.scene === 'title') {
@@ -1302,7 +1303,7 @@ export class GameManager {
     ctx.save();
     ctx.beginPath(); ctx.rect(V.x, V.y, V.w, V.h); ctx.clip();
     if (sh) { ctx.fillStyle = '#000'; ctx.fillRect(V.x, V.y, V.w, V.h); }
-    ctx.drawImage(view, V.x + ox, V.y + oy);
+    ctx.drawImage(view, V.x + ox, V.y + oy, V.w, V.h); // view canvas is RENDER_SCALE x larger
     ctx.restore();
     // click a visible foe to make it the skill target
     if (!this.panel && this.scene === 'playing') {
