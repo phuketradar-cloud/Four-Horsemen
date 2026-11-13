@@ -24,8 +24,16 @@ Dark-fantasy dungeon crawler แนว Wizardry: เดินทีละช่�
 
 ตอนนี้มีภาพวาดแล้ว: **skeleton**, **abyssbeast** (size 1.5), **captain** (Fallen Knight Captain — Fallen Knight ธรรมดายังเป็น sprite เดิม), **abaddon** (บอสสุดท้าย — มี 3 ท่า ไม่มี hurt)
 - ท่าไหนไม่มีไฟล์ต้นฉบับ ตัว bake จะข้ามไป และในเกมจะใช้ภาพ idle แทน (ต้องมี idle เสมอ)
-- เพิ่มแล้ว: **knight** (Fallen Knight) และอีก 20 ตัวจากภาพรวม 4 ท่า: gravekeeper, cerberus, tyrant, thrall, stalker, harvester, harvesterBoss, revenant, soulbound, lich, sentinel, executor, gorgon, nephilim, chimera, locust, beast, seraph, prophet, dragon
-- ยังเป็น pixel art: crawler, warden, legionnaire, hound, executioner, cultist (prompt อยู่ใน `docs/enemy-prompts.md`)
+- **ศัตรูครบทั้ง 31 แบบเป็นภาพวาดแล้ว**
+- ศัตรู 26 ตัวทำจากภาพรวม 4 ท่า (prompt อยู่ใน `docs/enemy-prompts.md`):
+  - crawler, warden
+  - legionnaire, hound, executioner, cultist, tyrant
+  - thrall, stalker, harvester, harvesterBoss
+  - revenant, soulbound, lich, sentinel, executor
+  - gorgon, nephilim, chimera, locust, beast
+  - seraph, prophet, dragon
+  - gravekeeper, cerberus
+- `hound` มีภาพสำรองอีกเวอร์ชันที่ `assets/enemies/src/hound_sheet_alt.jpg` ถ้าจะใช้ ให้เปลี่ยนชื่อไฟล์เป็น `hound_sheet.jpg` แล้ว bake ใหม่
 
 **ภาพรวม 4 ท่าในภาพเดียว** (`assets/enemies/src/<sprite>_sheet.jpg`)
 - จัดท่าแบบ 2×2: ซ้ายบน idle, ขวาบน windup, ซ้ายล่าง attack, ขวาล่าง hurt ภาพจะเป็นสี่เหลี่ยมจัตุรัสหรือ 16:9 ก็ได้
@@ -101,6 +109,40 @@ Dark-fantasy dungeon crawler แนว Wizardry: เดินทีละช่�
 อาวุธทุกชนิดในเกมใช้ภาพ 5 แบบนี้ร่วมกัน: greatsword → sword, hammer/scythe → axe, spear → dagger, bow → crossbow
 - ตอนนี้มี: sword, axe, dagger, crossbow, crossbowEmpty
 - fists (มือเปล่า) ยังเป็น pixel art
+- แขนในภาพวาดถูกตัดที่ขอบภาพ ตอนโหลดเกมจะต่อแขนออกไปตามทิศของแขน (ใช้ลายถุงมือเดิมซ้ำ) ให้ยาวพ้นขอบจอ แขนจึงไม่ลอยตอนเอียงมือ ปิดได้ด้วย `extendArm: false`
+- ตอนฟัน อาวุธที่เป็นภาพวาดหมุนข้อมือน้อยกว่า pixel art (55%) แขนจึงอยู่ต่ำ ท่าฟันดูจากการเลื่อนมือและแสงวาดแทน
+
+**สวมอุปกรณ์อัตโนมัติ (Auto Equip)** (`src/systems/AutoEquip.js`)
+
+ในหน้ากระเป๋า ใช้ได้ 2 แบบ:
+- **ปุ่ม AUTO EQUIP** หรือกด **Y**: สวมอุปกรณ์ที่ดีที่สุดในกระเป๋าให้ Horseman ที่ควบคุมอยู่
+- **ปุ่ม AUTO: PARTY** หรือกด **Shift+Y**: สวมให้ Horseman ทุกตัวที่ยังมีชีวิต โดยแต่ละตัวคิดจากค่าสถานะของตัวเอง
+
+วิธีเลือก
+- คำนวณค่าสถานะจริงด้วย StatCalculator ตอนลองใส่แต่ละชิ้น จึงรวมโบนัสเซ็ต เพดานค่า และ passive ของ class ด้วย
+- ให้คะแนนตามน้ำหนักค่าสถานะ (ดาเมจอาวุธ, ATK, DEF, HP, crit ฯลฯ) FAMINE กับ DEATH ให้น้ำหนัก skill power มากกว่า
+- **อาวุธ:** เลือกเล่มที่ดีที่สุดของแต่ละช่อง hotbar (ดาบ/ขวาน/หน้าไม้/มีด) แล้วถืออาวุธช่องเดิมไว้เหมือนก่อนกด
+- **อุปกรณ์อื่น:** off-hand, หมวก, เสื้อ, ถุงมือ, ขา, แหวน, relic
+- **ไม่ใส่:** ของที่เลเวลไม่ถึง, ของ class อื่น, และของที่ Horseman ตัวอื่นใส่อยู่ (ของหนึ่งชิ้นมีผู้ใช้คนเดียว)
+- กดซ้ำจะไม่เปลี่ยนอะไรถ้าใส่ของดีที่สุดอยู่แล้ว
+
+เทส: `?test9` (11 ข้อ)
+
+**ภาพวาดไอเทม หีบสมบัติ และวัตถุในดันเจี้ยน** (`src/data/itemArt.js` + `render/ItemArt.js`)
+
+ภาพทั้งหมด 85 ชิ้น อยู่ที่ `assets/items/<key>.png` (64×64)
+- ไอคอน 79 แบบ ใช้กับไอเทมทุกชิ้นในเกม: อาวุธ ชุดเกราะ เครื่องประดับ ขวดยา ทอง และวัตถุดิบ 28 แบบ
+- หีบสมบัติ (ปิด/เปิด)
+- วัตถุในดันเจี้ยน: อ่างน้ำมนต์, แท่นบูชา, แผ่นศิลาจารึก, แท่นม้วนคัมภีร์ (ตอนใช้แล้วเกมทำให้มืดลงเอง)
+
+ภาพต้นฉบับเป็นภาพรวมหลายชิ้น อยู่ที่ `assets/items/src/items_*.jpg` (prompt อยู่ใน `docs/item-prompts.md`)
+
+ตัวตัดภาพ (`tools/make-item-art.js`) หาไอเทมแต่ละชิ้นจากรูปร่าง จึงไม่ต้องจัดเป็นตารางเป๊ะ:
+1. `findItems('<sheet>')` ให้ภาพตัวอย่างที่ใส่เลขกำกับแต่ละชิ้น
+2. `bakeItems('<sheet>', { key: เลข })` ตัดเฉพาะชิ้นที่ต้องการ
+3. ถ้าสองชิ้นวาดติดกัน ให้ส่งพารามิเตอร์ `D = 0`
+
+ในเกม ภาพถูกย่อให้เท่าขนาด sprite เดิม (ไอคอน 16×16) หน้าจอทุกหน้าจึงไม่เลื่อน
 
 **เพลงจากไฟล์** (`src/data/musicFiles.js` + `audio/FileMusic.js`)
 
@@ -320,6 +362,13 @@ State machine: FOLLOW → SEARCH → APPROACH → ATTACK → DEFEND → RECOVER
 ### Portrait ภาพวาดของ Horsemen
 - ไฟล์: `assets/portraits/conquest.webp`, `war.webp`, `famine.webp`, `death.webp` (352×416 = 8 เท่าของช่อง 44×52) ครอปจากภาพต้นฉบับใน `assets/portraits/src/` ด้วย `tools/make-portraits.js` (ตำแหน่งครอปแก้ได้ใน `PORTRAIT_CROPS`)
 - โหลดตอนเริ่มเกมโดย `src/render/PortraitArt.js`: ย่อแบบคุณภาพสูงเป็น 44×52 (HUD, ค่าย, หน้าอุปกรณ์), 88×104 (หน้าเลือก Horseman) และสร้างเวอร์ชัน "sealed" (มืด + โซ่ + กุญแจ) ให้ช่องพักอัตโนมัติ
+- ชุดปัจจุบัน (2026-11-13) ครอปจาก `assets/portraits/src/<id>_v2.jpg` ด้วย `PORTRAIT_CROPS_V2` (ภาพเก่า `.webp` ใน src ยังเก็บไว้)
+
+### หน้า NPC ในค่าย (Maren, Ansel, Ysolde, Ferryman, Seer)
+- วางไฟล์ `assets/npcs/<maren|ansel|ysolde|ferryman|seer>.webp` (หรือ .png/.jpg ขนาดใดก็ได้) — `src/render/NpcArt.js` ครอปเป็น 76×90 (เอียงไปด้านบนที่ใบหน้า) แทนภาพพิกเซลเดิม; ถ้าไม่มีไฟล์จะใช้ภาพพิกเซลเดิม
+- หน้าค่ายแสดงเป็นคอลัมน์ใหญ่ที่ขอบซ้ายของจอ 16:9 พร้อมชื่อใต้ภาพ; หน้าต่างคุยก็ใช้ภาพขนาดเดียวกัน
+- prompt สำหรับสร้างภาพ: `docs/npc-prompts.md`
+- ชุดปัจจุบัน: ภาพต้นฉบับ `assets/npcs/src/<id>.jpg` ครอปหน้าด้วย `tools/make-npc-portraits.js` (`NPC_CROPS`) เป็น 304×360 แล้วบันทึกเป็น `assets/npcs/<id>.webp`
 - **เปลี่ยนภาพ:** วางไฟล์ใหม่ทับชื่อเดิม (ขนาดไหนก็ได้ ระบบจะครอปตรงกลางให้เป็นสัดส่วน 11:13) ถ้าไฟล์หายหรือเสีย จะกลับไปใช้ภาพที่วาดด้วยโค้ดเดิมอัตโนมัติ
 
 ### Balance: สิ่งที่วัดและสิ่งที่เปลี่ยน
