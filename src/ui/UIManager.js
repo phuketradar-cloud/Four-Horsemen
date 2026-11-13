@@ -1,5 +1,6 @@
 import { makeCanvas, hash2, BAYER4, hexToRgb } from '../render/gfx.js';
 import { drawText } from '../render/PixelFont.js';
+import { metalFrame, metalPlate, METALS } from '../render/MetalFrame.js';
 
 // Immediate-mode click regions + reusable carved-stone / bronze widgets.
 // Regions registered while drawing frame N receive the clicks processed at the start of frame N+1.
@@ -70,44 +71,34 @@ export class UIManager {
     return pat;
   }
 
-  // Weathered stone frame with bevel, bronze inner trim and corner studs.
+  // Forged metal frame (render/MetalFrame.js): bevelled iron band of `border` px, engraved
+  // pattern, rivets, spiked corner bosses. opts: border, panel, fill (false = keep inside),
+  // studs (false = plain corners), accent, metal ('iron' | 'bronze' | 'gold').
   frame(ctx, x, y, w, h, theme, opts = {}) {
     const b = opts.border ?? 4;
-    ctx.fillStyle = this.stonePattern(ctx, theme);
-    ctx.fillRect(x, y, w, h);
-    // bevel
-    ctx.fillStyle = theme.stoneLight; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y, 1, h);
-    ctx.fillStyle = theme.stoneDeep; ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x + w - 1, y, 1, h);
-    if (opts.fill !== false) {
-      ctx.fillStyle = theme.stoneDeep; ctx.fillRect(x + b - 1, y + b - 1, w - b * 2 + 2, h - b * 2 + 2);
-      ctx.fillStyle = theme.bronzeDark; ctx.fillRect(x + b, y + b, w - b * 2, h - b * 2);
-      ctx.fillStyle = opts.panel || theme.panel; ctx.fillRect(x + b + 1, y + b + 1, w - b * 2 - 2, h - b * 2 - 2);
-      ctx.fillStyle = theme.bronze; ctx.fillRect(x + b, y + b, w - b * 2, 1); ctx.fillRect(x + b, y + b, 1, h - b * 2);
-    }
-    if (opts.studs !== false) {
-      for (const [sx, sy] of [[x + 1, y + 1], [x + w - 4, y + 1], [x + 1, y + h - 4], [x + w - 4, y + h - 4]]) {
-        ctx.fillStyle = theme.bronzeDark; ctx.fillRect(sx, sy, 3, 3);
-        ctx.fillStyle = theme.bronzeLight; ctx.fillRect(sx, sy, 2, 2);
-      }
-    }
+    metalFrame(ctx, x, y, w, h, {
+      band: b, fill: opts.fill === false ? null : (opts.panel || theme.panel),
+      accent: opts.accent || null, metal: opts.metal, corners: opts.studs === false ? 'none' : b >= 4 ? 'spike' : 'boss',
+      rivets: b >= 4, brackets: b >= 4,
+    });
   }
 
-  // Thin bronze-edged dark box (command menu, tooltips).
+  // Thin metal-edged dark box (command menu, tooltips).
   box(ctx, x, y, w, h, theme, bg) {
+    const m = METALS.iron;
     ctx.fillStyle = '#000'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
-    ctx.fillStyle = theme.bronzeDark; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = m.dark[2]; ctx.fillRect(x, y, w, h);
     ctx.fillStyle = bg || theme.panel; ctx.fillRect(x + 1, y + 1, w - 2, h - 2);
-    ctx.fillStyle = theme.bronze; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y, 1, h);
+    ctx.fillStyle = m.lit[2]; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y, 1, h);
+    ctx.fillStyle = theme.bronze; ctx.globalAlpha = 0.5; ctx.fillRect(x + 1, y + 1, w - 2, 1); ctx.globalAlpha = 1;
   }
 
   // Rectangular carved button with label.
   textButton(ctx, x, y, w, h, label, theme, onClick, opts = {}) {
     const hov = this.button(x, y, w, h, onClick);
     const sel = opts.selected || hov;
-    ctx.fillStyle = '#000'; ctx.fillRect(x - 1, y - 1, w + 2, h + 2);
-    ctx.fillStyle = sel ? theme.bronze : theme.stoneMid; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = sel ? theme.bronzeLight : theme.stoneLight; ctx.fillRect(x, y, w, 1); ctx.fillRect(x, y, 1, h);
-    ctx.fillStyle = theme.stoneDeep; ctx.fillRect(x, y + h - 1, w, 1); ctx.fillRect(x + w - 1, y, 1, h);
+    // metal plate: polished bronze when selected / hovered, dark iron otherwise
+    metalPlate(ctx, x, y, w, h, { metal: sel ? 'bronze' : 'iron', face: sel ? ['#e0b468', '#b08040', '#7a5428'] : undefined, rivets: w >= 60 && h >= 14 });
     const col = opts.disabled ? theme.textDim : sel ? '#1a1206' : theme.text;
     drawText(ctx, label, x + w / 2, y + Math.floor((h - 7) / 2), col, { align: 'center', shadow: sel ? false : '#000' });
     return hov;
