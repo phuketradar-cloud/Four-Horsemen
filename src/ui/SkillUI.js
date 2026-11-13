@@ -32,7 +32,7 @@ export function drawSkillBar(ctx, g, t) {
     ctx.fillRect(x - 1, y - 1, 26, 26);
     ctx.fillStyle = '#0a0806'; ctx.fillRect(x, y, 24, 24);
     if (unlocked) {
-      ctx.drawImage(g.sprites.skillIcons[id], x, y);
+      ctx.drawImage(g.sprites.skillIcons[id], x, y, 24, 24);
       if (!affordable) { ctx.globalAlpha = 0.45; ctx.fillStyle = '#600000'; ctx.fillRect(x, y, 24, 24); ctx.globalAlpha = 1; }
       if (left > 0) {
         const f = sk.cooldowns.fraction(id);
@@ -108,7 +108,7 @@ export function drawSkillPanel(ctx, g) {
     const unlocked = sk.isUnlocked(id);
     const chosen = h.upgrades[id];
     ui.box(ctx, P.x + 8, y, P.w - 16, rowH - 3, th, i === 4 ? '#18120a' : '#100e09');
-    ctx.drawImage(g.sprites.skillIcons[id], P.x + 12, y + 4);
+    ctx.drawImage(g.sprites.skillIcons[id], P.x + 12, y + 4, 24, 24);
     if (!unlocked) { ctx.globalAlpha = 0.65; ctx.fillStyle = '#000'; ctx.fillRect(P.x + 12, y + 4, 24, 24); ctx.globalAlpha = 1; }
     drawText(ctx, hotkeyLabel(g, i), P.x + 13, y + 32, th.highlight);
     drawText(ctx, s.name, P.x + 42, y + 3, unlocked ? s.color : th.textDim);

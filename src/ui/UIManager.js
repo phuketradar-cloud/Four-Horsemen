@@ -1,5 +1,6 @@
 import { makeCanvas, hash2, BAYER4, hexToRgb } from '../render/gfx.js';
 import { drawText } from '../render/PixelFont.js';
+import { SCREEN } from '../data/config.js';
 import { metalFrame, metalPlate, METALS } from '../render/MetalFrame.js';
 
 // Immediate-mode click regions + reusable carved-stone / bronze widgets.
@@ -130,7 +131,7 @@ export class UIManager {
     if (!this.tooltip) return;
     const t = this.tooltip;
     const w = t.text.length * 6 + 8;
-    const x = Math.max(2, Math.min(ctx.canvas.width - 2 - w, t.x - w / 2));
+    const x = Math.max(2, Math.min(SCREEN.w - 2 - w, t.x - w / 2));
     this.box(ctx, x, t.y, w, 11, theme, '#0c0a06');
     drawText(ctx, t.text, x + 4, t.y + 2, theme.highlight);
     this.tooltip = null;
