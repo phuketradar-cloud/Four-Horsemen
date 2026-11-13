@@ -15,7 +15,7 @@ const BODY_H = 128;
 
 const load = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
 
-function cutBackground(img) {
+export function cutBackground(img) {
   const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
   const x = c.getContext('2d'); x.drawImage(img, 0, 0);
   const id = x.getImageData(0, 0, c.width, c.height), d = id.data, W = c.width, H = c.height;
@@ -131,6 +131,90 @@ function fadeGround(c, ground) {
     }
   }
   x.putImageData(id, 0, 0);
+}
+
+// ---------------------------------------------------------------- pose sheets
+// One painting with all four poses in a 2x2 layout (any aspect): TL idle, TR windup, BL attack, BR hurt.
+// The poses are found as figures, not cut on the quadrant lines, so a weapon that reaches across the
+// middle stays with its owner: the keyed image is split into connected shapes (on a coarse grid, so
+// sparks and effects next to a figure join it). A shape that lies mostly (85%+) in one quadrant goes
+// there whole; a shape spread over several quadrants (two poses drawn touching) is cut on the midlines.
+// Panel divider lines (a thin dark line across the image, possibly broken by JPEG) are removed first.
+const SHEET_POSES = [['idle', 0, 0], ['windup', 1, 0], ['attack', 0, 1], ['hurt', 1, 1]];
+
+function clearDividers(d, W, H) {
+  const on = (x, y) => d[(y * W + x) * 4 + 3] > 40;
+  const rc = new Int32Array(H), cc = new Int32Array(W);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (on(x, y)) { rc[y]++; cc[x]++; }
+  // a divider: covers 40%+ of the line and is thin (the lines 6px away are less than half as full)
+  const thin = (a, i, n) => a[i] > n * 0.4 && (i < 6 || a[i - 6] < a[i] * 0.5) && (i + 6 >= a.length || a[i + 6] < a[i] * 0.5);
+  const rows = [], cols = [];
+  for (let y = 0; y < H; y++) if (thin(rc, y, W)) rows.push(y);
+  for (let x = 0; x < W; x++) if (thin(cc, x, H)) cols.push(x);
+  for (const y0 of rows) for (let y = Math.max(0, y0 - 2); y <= Math.min(H - 1, y0 + 2); y++) for (let x = 0; x < W; x++) d[(y * W + x) * 4 + 3] = 0;
+  for (const x0 of cols) for (let x = Math.max(0, x0 - 2); x <= Math.min(W - 1, x0 + 2); x++) for (let y = 0; y < H; y++) d[(y * W + x) * 4 + 3] = 0;
+  return { rows: rows.length, cols: cols.length };
+}
+
+export function splitSheet(c) {
+  const W = c.width, H = c.height, x = c.getContext('2d');
+  const id = x.getImageData(0, 0, W, H), d = id.data;
+  const div = clearDividers(d, W, H);
+  // coarse occupancy grid, dilated by one cell, labelled with 8-connectivity
+  const S = 4, gw = Math.ceil(W / S), gh = Math.ceil(H / S), grid = new Uint8Array(gw * gh);
+  for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++) if (d[(y * W + xx) * 4 + 3] > 40) grid[((y / S) | 0) * gw + ((xx / S) | 0)] = 1;
+  const dil = new Uint8Array(gw * gh);
+  for (let gy = 0; gy < gh; gy++) for (let gx = 0; gx < gw; gx++) if (grid[gy * gw + gx]) for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) { const ny = gy + oy, nx = gx + ox; if (ny >= 0 && ny < gh && nx >= 0 && nx < gw) dil[ny * gw + nx] = 1; }
+  const label = new Int32Array(gw * gh).fill(-1), stats = [];
+  for (let s = 0; s < gw * gh; s++) {
+    if (!dil[s] || label[s] >= 0) continue;
+    const L = stats.length, q = [s]; label[s] = L; let sx = 0, sy = 0, n = 0; const qn = [0, 0, 0, 0];
+    while (q.length) {
+      const k = q.pop(), gx = k % gw, gy = (k / gw) | 0;
+      if (grid[k]) { sx += gx; sy += gy; n++; qn[(gx * S >= W / 2 ? 1 : 0) + (gy * S >= H / 2 ? 2 : 0)]++; }
+      for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) { const ny = gy + oy, nx = gx + ox; if (ny < 0 || ny >= gh || nx < 0 || nx >= gw) continue; const nk = ny * gw + nx; if (dil[nk] && label[nk] < 0) { label[nk] = L; q.push(nk); } }
+    }
+    stats.push({ n, cx: n ? sx / n * S : 0, cy: n ? sy / n * S : 0, qn });
+  }
+  // shape -> its main quadrant, or -1 (= cut on the midlines) when no quadrant holds 85% of it
+  const quad = stats.map((st) => { const m = Math.max(...st.qn); return st.n && m >= st.n * 0.85 ? st.qn.indexOf(m) : -1; });
+  const out = {};
+  for (const [pose, qx, qy] of SHEET_POSES) {
+    const qi = qx + qy * 2, pc = document.createElement('canvas'); pc.width = W; pc.height = H;
+    const px = pc.getContext('2d'), pid = px.createImageData(W, H), pd = pid.data;
+    for (let y = 0; y < H; y++) for (let xx = 0; xx < W; xx++) {
+      const i = (y * W + xx) * 4;
+      if (d[i + 3] === 0) continue;
+      const l = label[((y / S) | 0) * gw + ((xx / S) | 0)];
+      if (l < 0) continue;
+      const q = quad[l] >= 0 ? quad[l] : (xx >= W / 2 ? 1 : 0) + (y >= H / 2 ? 2 : 0);
+      if (q !== qi) continue;
+      pd[i] = d[i]; pd[i + 1] = d[i + 1]; pd[i + 2] = d[i + 2]; pd[i + 3] = d[i + 3];
+    }
+    px.putImageData(pid, 0, 0);
+    out[pose] = pc;
+  }
+  return { poses: out, shapes: stats.filter((s) => s.n > 50).length, cut: quad.filter((q, i) => q < 0 && stats[i].n > 50).length, dividers: div };
+}
+
+// Bake a 2x2 pose sheet (assets/enemies/src/<id>_sheet.(webp|png|jpg)): every pose is scaled by the
+// same factor (idle body = BODY_H tall), stood on one baseline and centred, so a crouching attack
+// stays lower than the standing idle instead of being stretched to the same height.
+export async function bakeSheet(id, base = '/assets/enemies/src/') {
+  const cut = cutBackground(await loadSource(base, id, 'sheet'));
+  const { poses, shapes, cut: midCut, dividers } = splitSheet(cut);
+  const boxes = Object.fromEntries(Object.entries(poses).map(([p, c]) => [p, bbox(c)]));
+  const k = BODY_H / (boxes.idle.y1 - boxes.idle.y0 + 1);
+  const size = Object.fromEntries(Object.entries(boxes).map(([p, b]) => [p, [Math.max(1, Math.round((b.x1 - b.x0 + 1) * k)), Math.max(1, Math.round((b.y1 - b.y0 + 1) * k))]]));
+  const W = Math.max(...Object.values(size).map((s) => s[0])) + 2, H = Math.max(...Object.values(size).map((s) => s[1]));
+  const frames = {};
+  for (const [p, b] of Object.entries(boxes)) {
+    const fr = downscale(poses[p], b.x0, b.y0, b.x1 - b.x0 + 1, b.y1 - b.y0 + 1, size[p][0], size[p][1]);
+    const c = document.createElement('canvas'); c.width = W; c.height = H;
+    c.getContext('2d').drawImage(fr, Math.round((W - fr.width) / 2), H - fr.height);
+    frames[p] = c.toDataURL('image/png');
+  }
+  return { frames, size: [W, H], mode: 'sheet', shapes, midCut, dividers };
 }
 
 // first source that exists: <id>_<pose>.webp / .png / .jpg
