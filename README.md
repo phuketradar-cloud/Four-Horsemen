@@ -384,6 +384,15 @@ State machine: FOLLOW → SEARCH → APPROACH → ATTACK → DEFEND → RECOVER
 - ตัดจากภาพชุดใน `assets/skills/src/` ด้วย `tools/make-skill-icons.js` (`SKILL_ICON_CROPS` = ตำแหน่งครอปของแต่ละช่อง, `preview()` แสดงกรอบครอป), prompt อยู่ที่ `docs/skill-icon-prompts.md`
 - `src/render/SkillArt.js` โหลดแล้วย่อเป็น 24×24 (แถบสกิล, หน้า SKILLS), 32×32 (`skillIconsHi`, `passiveIcons` ในหน้าเลือกตัวละคร) และ 16×16 (`uiIcons`); ถ้าไม่มีไฟล์จะใช้ไอคอนพิกเซลเดิม
 
+### Auto Equip: ปุ่มและคีย์ลัด
+- ปุ่ม **AUTO EQUIP** อยู่ 3 ที่: หน้าค่าย (แถบล่าง, ถ้าเล่นแบบปาร์ตี้จะใส่ให้ทุกคน), หน้า GEAR/CHARACTER (มุมขวาบน + ปุ่ม PARTY) และหน้ากระเป๋า
+- คีย์ลัด **Y** (ตัวที่ควบคุม) / **SHIFT+Y** (ทั้งปาร์ตี้) ใช้ได้ในค่าย ระหว่างสำรวจดันเจี้ยน หน้ากระเป๋า และหน้า GEAR
+- แก้บั๊ก: `core/Input.js` เดิมบันทึกเฉพาะปุ่มที่ผูกคำสั่งไว้เป็น "กดค้าง" ทำให้ Y และ Shift ไม่เคยทำงาน ตอนนี้ทุกปุ่มถูกบันทึก
+
+### พื้นหลังหน้าค่าย (The Last Sanctuary)
+- วางภาพที่ `assets/camp/sanctuary.webp|jpg|png` (16:9) — `CampUI.js` วาดเต็มจอ มืดลง 50% (`CAMP_BG.dim`) ใต้ UI; ไม่มีไฟล์ = พื้นเรียบแบบเดิม
+- prompt: `docs/camp-background-prompt.md`
+
 ### หน้า NPC ในค่าย (Maren, Ansel, Ysolde, Ferryman, Seer)
 - วางไฟล์ `assets/npcs/<maren|ansel|ysolde|ferryman|seer>.webp` (หรือ .png/.jpg ขนาดใดก็ได้) — `src/render/NpcArt.js` ครอปเป็น 76×90 (เอียงไปด้านบนที่ใบหน้า) แทนภาพพิกเซลเดิม; ถ้าไม่มีไฟล์จะใช้ภาพพิกเซลเดิม
 - หน้าค่ายแสดงเป็นคอลัมน์ใหญ่ที่ขอบซ้ายของจอ 16:9 พร้อมชื่อใต้ภาพ; หน้าต่างคุยก็ใช้ภาพขนาดเดียวกัน
