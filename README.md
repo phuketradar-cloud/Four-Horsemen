@@ -364,6 +364,26 @@ State machine: FOLLOW → SEARCH → APPROACH → ATTACK → DEFEND → RECOVER
 - โหลดตอนเริ่มเกมโดย `src/render/PortraitArt.js`: ย่อแบบคุณภาพสูงเป็น 44×52 (HUD, ค่าย, หน้าอุปกรณ์), 88×104 (หน้าเลือก Horseman) และสร้างเวอร์ชัน "sealed" (มืด + โซ่ + กุญแจ) ให้ช่องพักอัตโนมัติ
 - ชุดปัจจุบัน (2026-11-13) ครอปจาก `assets/portraits/src/<id>_v2.jpg` ด้วย `PORTRAIT_CROPS_V2` (ภาพเก่า `.webp` ใน src ยังเก็บไว้)
 
+### หน้าเลือก Horseman (CHOOSE YOUR HORSEMAN)
+- `src/ui/CharacterSelect.js` วาดเต็มจอ 16:9 (960×540): การ์ดภาพวาด 176×208 (`portraits.card`) 4 ใบ, ใบที่เลือกยกขึ้น เรืองแสงสีประจำตัว (`SELECT_ACCENT`: ทอง/แดง/เขียว/ฟ้า) มีประกายลอยและขยับเบาๆ
+- แผงข้อมูล: ชื่อ ฉายา บทบาท เรื่องย่อ ความยาก (กะโหลก) | แถบ HP ATK DEF CRIT SPEED | Passive, กลไกทรัพยากร, การ์ดสกิล 5 ใบ (ชี้เมาส์ดูรายละเอียด)
+- ปุ่ม BEGIN YOUR JOURNEY เปิดหน้าต่างยืนยัน "RIDE AS ...?" (ENTER ยืนยัน, ESC ยกเลิก); A/D หรือลูกศรเปลี่ยนตัว, คลิกการ์ดเลือก, ดับเบิลคลิกเปิดหน้าต่างยืนยัน
+
+### ฟอนต์หัวข้อ (Metal Mania)
+- ข้อความขนาดใหญ่ (`drawText` ที่ `scale >= 2`: ชื่อหน้าจอ, ชื่อ Horseman, ปุ่ม BEGIN ฯลฯ) ใช้ฟอนต์ **Metal Mania** (Google Fonts, SIL OFL) ไล่สีจากสว่างลงเข้ม ขอบดำแดง เงา — ย่อ/ขยายให้พอดีกล่องเดิมของตัวอักษรพิกเซล เลย์เอาต์ไม่ขยับ
+- ข้อความเล็กยังเป็นฟอนต์พิกเซลเพื่อให้อ่านง่าย; ตั้งค่าได้ที่ `DISPLAY_FONT` ใน `src/render/PixelFont.js` (`enabled`, `minScale`, `sizeMul`); ส่ง `{ pixel: true }` เพื่อบังคับใช้พิกเซล
+- หน้าเมนูหลัก: ชื่อเกมใช้ Metal Mania เช่นกัน (`--ts-font-deco` ใน `style.css`); ถ้าออฟไลน์จะกลับไปใช้ฟอนต์เดิม
+
+### กรอบโลหะ (ทุกหน้าจอ)
+- `src/render/MetalFrame.js` วาดกรอบเหล็กตีขึ้นรูปด้วยโค้ด (ไม่ใช้ภาพ): ขอบนูนไล่เฉด, ร่องสลัก + ลายเพชรเรียงต่อกัน, หมุดย้ำทุก 44px, มุมเป็นปุ่มโลหะมีอัญมณีและหนามแหลม, ขายึดมุม, ป้ายประดับกลางขอบบน (`crest`)
+- โลหะ 3 แบบ: `iron` (ปกติ), `bronze` (ปุ่มที่เลือก), `gold` (การ์ดที่เลือก, ปุ่ม BEGIN)
+- `UIManager.frame/box/textButton` เรียกใช้ตัวนี้ จึงเปลี่ยนทุกแผง (ค่าย, กระเป๋า, SKILLS, Journal, HUD, tooltip) พร้อมกัน; ความหนาขอบยังเท่าเดิม (`border`) เนื้อหาข้างในไม่เลื่อน
+
+### ไอคอนสกิล / Passive / UI (ภาพวาด)
+- ไฟล์ `assets/skills/<key>.png` (96×96) 30 ไฟล์: สกิลทั้ง 20 (ชื่อตาม id ใน `data/skills.js`), Passive 4 (id ใน `data/characters.js`), กะโหลกความยาก `skull_lit`/`skull_dim`, สัญลักษณ์ทรัพยากร `res_dominion|fury|plague|souls`
+- ตัดจากภาพชุดใน `assets/skills/src/` ด้วย `tools/make-skill-icons.js` (`SKILL_ICON_CROPS` = ตำแหน่งครอปของแต่ละช่อง, `preview()` แสดงกรอบครอป), prompt อยู่ที่ `docs/skill-icon-prompts.md`
+- `src/render/SkillArt.js` โหลดแล้วย่อเป็น 24×24 (แถบสกิล, หน้า SKILLS), 32×32 (`skillIconsHi`, `passiveIcons` ในหน้าเลือกตัวละคร) และ 16×16 (`uiIcons`); ถ้าไม่มีไฟล์จะใช้ไอคอนพิกเซลเดิม
+
 ### หน้า NPC ในค่าย (Maren, Ansel, Ysolde, Ferryman, Seer)
 - วางไฟล์ `assets/npcs/<maren|ansel|ysolde|ferryman|seer>.webp` (หรือ .png/.jpg ขนาดใดก็ได้) — `src/render/NpcArt.js` ครอปเป็น 76×90 (เอียงไปด้านบนที่ใบหน้า) แทนภาพพิกเซลเดิม; ถ้าไม่มีไฟล์จะใช้ภาพพิกเซลเดิม
 - หน้าค่ายแสดงเป็นคอลัมน์ใหญ่ที่ขอบซ้ายของจอ 16:9 พร้อมชื่อใต้ภาพ; หน้าต่างคุยก็ใช้ภาพขนาดเดียวกัน

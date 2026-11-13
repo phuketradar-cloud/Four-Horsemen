@@ -34,7 +34,7 @@ html, body {
   --ts-blood-deep: #5a0806;
   --ts-ink: rgba(8, 5, 5, 0.74);
   --ts-font: 'Cinzel', 'Trajan Pro', 'Book Antiqua', Georgia, serif;
-  --ts-font-deco: 'Cinzel Decorative', 'Cinzel', 'Book Antiqua', Georgia, serif;
+  --ts-font-deco: 'Metal Mania', 'Cinzel Decorative', 'Cinzel', 'Book Antiqua', Georgia, serif;
 }
 #title-screen { position: fixed; inset: 0; display: none; overflow: hidden; background: radial-gradient(ellipse at 50% 30%, #3a0806 0%, #120403 55%, #050202 100%); }
 body.title-mode #title-screen { display: block; }
@@ -76,13 +76,14 @@ body.title-mode.canvas-interactive #stage { pointer-events: auto; }
 .ts-title h1 { margin: 0; line-height: 0.95; font-weight: 900; }
 .ts-t1, .ts-t2 { display: block; text-transform: uppercase; }
 .ts-t1 {
-  font-family: var(--ts-font-deco); font-size: min(6.4vw, 10.5vh, 92px); letter-spacing: 0.03em;
+  font-family: var(--ts-font-deco); font-weight: 400; font-size: min(6.4vw, 10.5vh, 92px); letter-spacing: 0.03em;
   padding-top: 0.12em;
   background: linear-gradient(to bottom, #fff6dc 0%, #e9d6a8 48%, #a98654 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 3px 0 #1a0604) drop-shadow(0 0 14px rgba(255, 70, 30, 0.25));
 }
 .ts-t2 {
+  font-family: var(--ts-font-deco); font-weight: 400;
   font-size: min(8.6vw, 14vh, 128px); letter-spacing: 0.02em; margin-top: -0.04em;
   background: linear-gradient(to bottom, #ff5a3c 0%, #d81d12 45%, #7d0905 100%);
   -webkit-background-clip: text; background-clip: text; color: transparent;
