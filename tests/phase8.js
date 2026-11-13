@@ -2,7 +2,7 @@
 // All four Horsemen fight together: one controlled, three AI companions running through the same
 // combat / skill systems. Covers the 10 acceptance points of the brief plus rule integrity
 // (single damage per swing, no wall walking / overlaps, unreachable targets, falling, saves, solo).
-import { SCREEN, DIRS } from '../src/data/config.js';
+import { SCREEN, DIRS, RENDER_SCALE } from '../src/data/config.js';
 import { CLASS_ORDER } from '../src/data/characters.js';
 import { runPhase4 } from './phase4.js';
 
@@ -278,7 +278,7 @@ export async function runPhase8(g) {
     arena('war');
     let drawErr = null;
     try { g.render(); for (const p of ['inventory', 'character', 'skills', 'formation', 'map', 'options', 'help']) { g.openPanel(p); g.render(); } g.closePanel(); g.takeControl('famine'); g.render(); g.toCamp(); g.render(); } catch (err) { drawErr = err.message; }
-    check('First-person view, retro HUD and 16:9 frame intact with the party (all panels render)', !drawErr && g.screen.width === SCREEN.w && g.screen.height === SCREEN.h && !errors.length, drawErr || errors[0] || '960x540, panels + camp rendered');
+    check('First-person view, retro HUD and 16:9 frame intact with the party (all panels render)', !drawErr && g.screen.width === SCREEN.w * RENDER_SCALE && g.screen.height === SCREEN.h * RENDER_SCALE && !errors.length, drawErr || errors[0] || '960x540, panels + camp rendered');
   } catch (err) {
     check('Phase 8 suite ran to completion', false, `${err.message} @ ${(err.stack || '').split('\n')[1] || ''}`);
     console.warn(err);

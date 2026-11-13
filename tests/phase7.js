@@ -2,7 +2,7 @@
 // 16:9 layout + output scaling maths, COMMANDS popup removal (and every command still reachable by key),
 // hold-SPACE continuous attacks (repeat, release, cooldown, single damage per swing, frame-rate
 // independence, stun / death / panel stops, target death) and a layout overlap check.
-import { SCREEN, CLASSIC, LAYOUT, TUNING, KEYMAP, VIEW } from '../src/data/config.js';
+import { SCREEN, CLASSIC, LAYOUT, TUNING, KEYMAP, VIEW, RENDER_SCALE } from '../src/data/config.js';
 import { Display } from '../src/core/Display.js';
 import * as HUD from '../src/ui/HUD.js';
 import { CONTROLS } from '../src/ui/Panels.js';
@@ -55,7 +55,7 @@ export async function runPhase7(g) {
 
   try {
     // ============================================================ 1-3. 16:9, resolutions, no distortion
-    check('Logical frame is native 16:9 (960x540) and the game draws on it with Canvas 2D', SCREEN.w * 9 === SCREEN.h * 16 && g.screen.width === 960 && g.screen.height === 540 && g.ctx instanceof CanvasRenderingContext2D, `${g.screen.width}x${g.screen.height}`);
+    check('Logical frame is native 16:9 (960x540) and the game draws on it with Canvas 2D', SCREEN.w * 9 === SCREEN.h * 16 && g.screen.width === 960 * RENDER_SCALE && g.screen.height === 540 * RENDER_SCALE && g.ctx instanceof CanvasRenderingContext2D, `${g.screen.width}x${g.screen.height} (960x540 x${RENDER_SCALE})`);
     const src = document.createElement('canvas'); src.width = SCREEN.w; src.height = SCREEN.h;
     const sx = src.getContext('2d');
     for (let y = 0; y < SCREEN.h; y++) for (let x = 0; x < SCREEN.w; x += 1) if ((x + y) % 2 === 0) { sx.fillStyle = '#ff0000'; sx.fillRect(x, y, 1, 1); } else { sx.fillStyle = '#0000ff'; sx.fillRect(x, y, 1, 1); }
